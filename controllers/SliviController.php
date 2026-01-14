@@ -43,7 +43,9 @@ class SliviController
 
     /**
      * POST /slivi/action
-     * Body: { "action": "FEED", "foodId": 1 }
+     * Body:
+     * { "action": "FEED", "foodId": 1 }
+     * { "action": "SLEEP" }
      */
     public function action(): void
     {
@@ -59,7 +61,7 @@ class SliviController
             }
 
             $action = strtoupper($body['action']);
-            $foodId = $body['foodId'];
+            $foodId = $body['foodId'] ?? null; // 👈 agora é opcional
 
             // 🎮 Executa a ação no Slivi
             $result = $this->sliviService->performAction(

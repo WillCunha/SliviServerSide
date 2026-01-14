@@ -25,12 +25,15 @@ class SliviService
         // 1️⃣ Busca estados atuais
         $states = $this->getCharacterStates($userId);
 
-        // 2️⃣ Aplica Tick
+        // 2️⃣Verifica se está dormindo
+        $isSleeping = $this->isSleeping($userId);
+
+        // 3️⃣ Aplica Tick
         $lastUpdate = $this->getLastUpdate($userId);
         $now = new DateTime();
 
         $tickService = new TickService();
-        $updatedStates = $tickService->apply($states, $lastUpdate, $now);
+        $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping);
 
         // 3️⃣ Salva se mudou
         if ($updatedStates !== $states) {
@@ -57,6 +60,7 @@ class SliviService
             'emotion' => $emotionName,
             'color'   => $color,
             'image'   => $image,
+            'isSleeping' => $isSleeping,
             'states'  => $updatedStates
         ];
     }
@@ -146,7 +150,11 @@ class SliviService
                 break;
 
             case 'SLEEP':
-                $this->changeState($userId, 'SLEEP', +25);
+                $this->startSleep($userId);
+                break;
+
+            case 'WAKE':
+                $this->stopSleep($userId);
                 break;
 
             default:
@@ -243,5 +251,47 @@ class SliviService
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return new DateTime($row['last_update'] ?? 'now');
+    }
+
+    //ADICIONA O "DORMIR"
+    public function startSleep(int $userId): void
+    {
+        // Se já existir registro, atualiza
+        $stmt = $this->db->prepare("
+        INSERT INTO slivi_status (user_id, is_sleeping, started_at)
+        VALUES (?, 1, NOW())
+        ON DUPLICATE KEY UPDATE
+            is_sleeping = 1,
+            started_at = NOW(),
+            ended_at = NULL
+    ");
+        $stmt->execute([$userId]);
+    }
+
+    //PARA O "DORMIR"
+    public function stopSleep(int $userId): void
+    {
+        $stmt = $this->db->prepare("
+        UPDATE slivi_status
+        SET is_sleeping = 0,
+            ended_at = NOW()
+        WHERE user_id = ?
+    ");
+        $stmt->execute([$userId]);
+    }
+
+    //SE TIVER DORMINDO
+    public function isSleeping(int $userId): bool
+    {
+        $stmt = $this->db->prepare("
+        SELECT is_sleeping
+        FROM slivi_status
+        WHERE user_id = ?
+        LIMIT 1
+    ");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row && (int)$row['is_sleeping'] === 1;
     }
 }

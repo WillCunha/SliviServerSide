@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 class TickService
@@ -14,10 +15,20 @@ class TickService
         'STRESS' =>  0.10,
     ];
 
+    // Taxas quando está dormindo
+    private array $sleepRates = [
+        'ENERGY' => +0.30,
+        'SLEEP'  => +0.40,
+        'FUN'    => -0.05,
+        'HUNGER' => -0.15,
+    ];
+
+
     public function apply(
         array $states,
         DateTime $lastUpdate,
-        DateTime $now
+        DateTime $now,
+        bool $isSleeping = false
     ): array {
         $elapsed = $now->getTimestamp() - $lastUpdate->getTimestamp();
 
@@ -31,7 +42,9 @@ class TickService
             return $states;
         }
 
-        foreach ($this->rates as $state => $rate) {
+        $rates = $isSleeping ? $this->sleepRates : $this->rates;
+
+        foreach ($rates as $state => $rate) {
             if (!array_key_exists($state, $states)) {
                 continue;
             }
