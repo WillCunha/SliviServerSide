@@ -24,6 +24,7 @@ require_once __DIR__ . '/utils/Response.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/SliviController.php';
 require_once __DIR__ . '/controllers/FoodController.php';
+require_once __DIR__ . '/controllers/LocalizationController.php';
 
 
 // Router simples
@@ -47,6 +48,7 @@ try {
         $controller = new SliviController($db);
         $controller->state();
     }
+
     if ($path === '/slivi/action' && $method === 'POST') {
         $controller = new SliviController($db);
         $controller->action();
@@ -54,6 +56,12 @@ try {
 
     if ($path === '/slivi/foods' && $method === 'GET') {
         (new FoodController($db))->index();
+        exit;
+    }
+
+    if ($path === '/location/sync' && $method === 'POST') {
+        $controller = new LocalizationController($db);
+        $controller->sync();
         exit;
     }
 
