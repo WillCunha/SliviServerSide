@@ -49,20 +49,25 @@ try {
         $controller->state();
     }
 
+        if ($path === '/slivi/foods' && $method === 'GET') {
+        (new FoodController($db))->index();
+        exit;
+    }
+
     if ($path === '/slivi/action' && $method === 'POST') {
         $controller = new SliviController($db);
         $controller->action();
-    }
-
-    if ($path === '/slivi/foods' && $method === 'GET') {
-        (new FoodController($db))->index();
-        exit;
     }
 
     if ($path === '/location/sync' && $method === 'POST') {
         $controller = new LocalizationController($db);
         $controller->sync();
         exit;
+    }
+
+    if ($path === '/slivi/game' && $method === 'POST') {
+        $controller = new SliviController($db);
+        $controller->game();
     }
 
 

@@ -176,12 +176,34 @@ class SliviService
     }
 
 
+    public function playGame(
+        int $userId,
+        string $game,
+        int $score,
+        int $duration
+    ): array {
+
+        switch ($game) {
+            case 'FLAPPY':
+                $this->handleFlappyGame($userId, $score, $duration);
+                break;
+
+            default:
+                throw new Exception('Jogo inválido');
+        }
+
+        // 🔄 Reavalia emoção + retorna estado completo
+        return $this->getFullState($userId);
+    }
+
+
+
     private function evaluateEmotion(array $states): array
     {
         $energy = $states['ENERGY'] ?? 100;
         $hunger = $states['HUNGER'] ?? 100;
         $sleep  = $states['SLEEP'] ?? 100;
-        $stress = $states['STRESS'] ?? 0;
+        $stress = $states['STRESS'] ?? 100;
 
         if ($energy < 30) {
             return ['ASSUSTADO', '#800080', 'body_roxo_assustado.png'];
@@ -293,5 +315,33 @@ class SliviService
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $row && (int)$row['is_sleeping'] === 1;
+    }
+
+
+
+    private function handleFlappyGame(
+        int $userId,
+        int $score,
+        int $duration
+    ): void {
+
+
+        // Evento inválido (possível abuso)
+        if ($duration < 5) {
+            return; // não altera estado algum
+        }
+
+        // Custo de jogar
+        $this->changeState($userId, 'ENERGY', -15);
+        $this->changeState($userId, 'FUN', +25);
+
+        // Regras por performance
+        if ($score >= 1000) {
+            $this->changeState($userId, 'STRESS', -10);
+        }
+
+        if ($score < 300) {
+            $this->changeState($userId, 'STRESS', +10);
+        }
     }
 }

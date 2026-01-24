@@ -76,4 +76,37 @@ class SliviController
             Response::error($e->getMessage(), 400);
         }
     }
+
+
+    /**
+     * POST /slivi/game
+     * Body:
+     * {
+     *   "game": "FLAPPY",
+     *   "score": 1240,
+     *   "duration": 42
+     * }
+     */
+    public function game(): void
+    {
+        try {
+            $userId = AuthService::getUserIdFromHeader();
+            $body = json_decode(file_get_contents('php://input'), true);
+
+            if (!isset($body['game'], $body['score'])) {
+                throw new Exception('Dados do jogo incompletos');
+            }
+
+            $result = $this->sliviService->playGame(
+                $userId,
+                strtoupper($body['game']),
+                (int)$body['score'],
+                (int)($body['duration'] ?? 0)
+            );
+
+            Response::success($result);
+        } catch (Exception $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
 }
