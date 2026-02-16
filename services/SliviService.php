@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/TickService.php';
 require_once __DIR__ . '/FoodService.php';
+require_once __DIR__ . '/GameService.php';
 
 class SliviService
 {
+    private GameService $scoreRep;
     private PDO $db;
     private FoodService $foodService;
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+        $this->scoreRep = new GameService($db);
         $this->foodService = new FoodService($db);
     }
 
@@ -184,8 +187,8 @@ class SliviService
     ): array {
 
         switch ($game) {
-            case 'FLAPPY':
-                $this->handleFlappyGame($userId, $score, $duration);
+            case 'SLIVI-PULSE':
+                $this->handleSliviPulse($userId, $score, $duration);
                 break;
 
             default:
@@ -319,29 +322,50 @@ class SliviService
 
 
 
-    private function handleFlappyGame(
+    private function handleSliviPulse(
         int $userId,
         int $score,
         int $duration
     ): void {
 
-
-        // Evento inválido (possível abuso)
+        // Anti-abuso
         if ($duration < 5) {
-            return; // não altera estado algum
+            return;
         }
 
-        // Custo de jogar
+        // Busca score anterior
+        $previousScore = $this->scoreRep->getLastScore(
+            $userId,
+            'SLIVI-PULSE'
+        );
+
+        // Salva score atual
+        $this->scoreRep->save(
+            $userId,
+            'SLIVI-PULSE',
+            $score,
+            $duration
+        );
+
+        // Custo base do jogo
         $this->changeState($userId, 'ENERGY', -15);
         $this->changeState($userId, 'FUN', +25);
 
-        // Regras por performance
-        if ($score >= 1000) {
-            $this->changeState($userId, 'STRESS', -10);
+        // Primeira partida → sem comparação
+        if ($previousScore === null) {
+            return;
         }
 
-        if ($score < 300) {
-            $this->changeState($userId, 'STRESS', +10);
+        // 📉 Jogou pior
+        if ($score < $previousScore) {
+            $this->changeState($userId, 'BRAVO', +10);
+            $this->changeState($userId, 'FUN', -10);
+        }
+
+        // 📈 Jogou melhor
+        if ($score > $previousScore) {
+            $this->changeState($userId, 'BRAVO', -10);
+            $this->changeState($userId, 'FUN', +10);
         }
     }
 }

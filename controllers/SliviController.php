@@ -82,7 +82,7 @@ class SliviController
      * POST /slivi/game
      * Body:
      * {
-     *   "game": "FLAPPY",
+     *   "game": "SLIVI-PULSE",
      *   "score": 1240,
      *   "duration": 42
      * }
