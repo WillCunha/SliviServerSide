@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 class AuthService
@@ -35,10 +36,10 @@ class AuthService
         return $base64Header . '.' . $base64Payload . '.' . $base64Signature;
     }
 
-       public static function validateToken(string $token): int
+    public static function validateToken(string $token): int
     {
         global $db; // PDO criado no index.php
-    
+
         $stmt = $db->prepare("
             SELECT user_id
             FROM sessions
@@ -46,13 +47,13 @@ class AuthService
             LIMIT 1
         ");
         $stmt->execute([$token]);
-    
+
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
         if (!$row) {
             throw new Exception('Token inválido');
         }
-    
+
         return (int) $row['user_id'];
     }
 
@@ -67,6 +68,19 @@ class AuthService
         $token = str_replace('Bearer ', '', $headers['Authorization']);
 
         return self::validateToken($token);
+    }
+
+    public static function updateDeviceToken(int $userId, string $deviceToken): void
+    {
+        // Recomendo usar o Database::getConnection() como no AuthController
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare("
+            UPDATE users 
+            SET device_token = ? 
+            WHERE id = ?
+        ");
+        $stmt->execute([$deviceToken, $userId]);
     }
 
     private static function base64UrlEncode(string $data): string

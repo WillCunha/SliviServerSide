@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
@@ -29,7 +30,7 @@ class AuthController
         $stmt->execute(['email' => $email]);
 
         $user = $stmt->fetch();
-        
+
         $userId = $user['id'];
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
@@ -43,10 +44,37 @@ class AuthController
         ");
         $stmt->execute([$userId, $token]);
 
-        
+
 
         Response::success([
             'token' => $token
         ]);
+    }
+
+    // Adicione este método dentro da classe AuthController
+    public static function updateDeviceToken(): void
+    {
+        try {
+            // Verifica o token JWT no Header e retorna o ID do usuário logado
+            $userId = AuthService::getUserIdFromHeader();
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (!isset($input['device_token'])) {
+                Response::error('Device token é obrigatório', 400);
+            }
+
+            $deviceToken = trim($input['device_token']);
+
+            // Atualiza o token no banco
+            AuthService::updateDeviceToken($userId, $deviceToken);
+
+            Response::success([
+                'message' => 'Device token atualizado com sucesso'
+            ]);
+        } catch (Exception $e) {
+            // Se o JWT for inválido ou ausente, cai aqui
+            Response::error($e->getMessage(), 401);
+        }
     }
 }

@@ -22,9 +22,10 @@ require_once __DIR__ . '/utils/Response.php';
 
 // Controllers (vamos criar depois)
 require_once __DIR__ . '/controllers/AuthController.php';
-require_once __DIR__ . '/controllers/SliviController.php';
+require_once __DIR__ . '/controllers/CronController.php';
 require_once __DIR__ . '/controllers/FoodController.php';
 require_once __DIR__ . '/controllers/LocalizationController.php';
+require_once __DIR__ . '/controllers/SliviController.php';
 
 
 // Router simples
@@ -43,13 +44,18 @@ try {
         AuthController::login();
     }
 
+    if ($path === '/auth/device-token' && $method === 'POST') {
+        AuthController::updateDeviceToken();
+        exit;
+    }
+
     // SLIVI
     if ($path === '/slivi/state' && $method === 'GET') {
         $controller = new SliviController($db);
         $controller->state();
     }
 
-        if ($path === '/slivi/foods' && $method === 'GET') {
+    if ($path === '/slivi/foods' && $method === 'GET') {
         (new FoodController($db))->index();
         exit;
     }
@@ -68,6 +74,31 @@ try {
     if ($path === '/slivi/game' && $method === 'POST') {
         $controller = new SliviController($db);
         $controller->game();
+    }
+
+    if ($path === '/cron/notify' && $method === 'GET') {
+
+        $cronKey = $_GET['key'] ?? '';
+        if ($cronKey !== 'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0') {
+            Response::error('Acesso negado', 403);
+            exit;
+        }
+
+        $controller = new CronController($db);
+        $controller->processNotifications();
+        exit;
+    }
+
+    // ROTA PARA O APP LER AS NOTIFICAÇÕES (O "Sininho" do app)
+    if ($path === '/slivi/notifications' && $method === 'GET') {
+        // Assumindo que você pega o ID do user via Header ou Token
+        // $userId = Auth::getUserId(); 
+        $userId = 1; // Fixo para teste
+
+        $service = new NotificationService($db);
+        $data = $service->getNotifications($userId);
+
+        Response::json($data);
     }
 
 
