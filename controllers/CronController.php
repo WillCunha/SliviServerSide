@@ -1,6 +1,8 @@
 <?php
 
 declare(strict_types=1);
+error_reporting(E_ALL);
+    ini_set('display_errors', '1');
 
 require_once __DIR__ . '/../services/NotificationService.php';
 
@@ -15,32 +17,26 @@ class CronController
         $this->notificationService = new NotificationService($db);
     }
 
-    public function processNotifications(): void
+  public function processNotifications(): void
     {
-        // ATENÇÃO: Em produção com muitos usuários, você deve fazer paginação (chunks)
-        // para não estourar a memória do PHP.
-        
-        // 1. Pegar IDs de usuários ativos (ex: logaram nas últimas 24h ou 48h)
-        // Não faz sentido gastar processamento com usuários inativos há meses.
-        $stmt = $this->db->query("
-            SELECT id FROM users 
-            WHERE active = 1 
-            -- AND last_login > DATE_SUB(NOW(), INTERVAL 2 DAY) 
-        ");
-        
-        $users = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        try {
+            $stmt = $this->db->query("SELECT id FROM users WHERE active = 1");
+            $users = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $count = 0;
-        foreach ($users as $userId) {
-            try {
-                $this->notificationService->checkAndNotify((int)$userId);
-                $count++;
-            } catch (Exception $e) {
-                // Loga erro mas não para o loop
-                error_log("Erro no Cron User $userId: " . $e->getMessage());
+            $totalSent = 0;
+            foreach ($users as $userId) {
+                // Aqui somamos o retorno de checkAndNotify
+                $totalSent += $this->notificationService->checkAndNotify((int)$userId);
             }
-        }
 
-        echo json_encode(['status' => 'success', 'processed' => $count]);
+            echo json_encode([
+                'status' => 'success', 
+                'processed' => $totalSent, // Mostrará o total de notificações gravadas
+                'users_checked' => count($users)
+            ]);
+
+        } catch (Throwable $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
     }
 }

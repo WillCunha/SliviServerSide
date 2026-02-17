@@ -1,6 +1,9 @@
 <?php
 
 declare(strict_types=1);
+// Força o erro a aparecer mesmo se o servidor tentar esconder
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 
 require_once __DIR__ . '/SliviService.php';
 require_once __DIR__ . '/WeatherServices.php';
@@ -19,6 +22,7 @@ class NotificationService
         'HUNGER_LOW'   => 120, // 2 horas
         'ENERGY_LOW'   => 180, // 3 horas
         'BORED'        => 240, // 4 horas
+        'BRAVO'        => 240, // 4 horas
         'COLD'         => 360, // 6 horas
         'RAIN'         => 360  // 6 horas
     ];
@@ -33,84 +37,121 @@ class NotificationService
     /**
      * Lógica principal chamada pelo CRON
      */
-    public function checkAndNotify(int $userId): void
+    public function checkAndNotify(int $userId): int
     {
-        // 1. Atualiza estado para ter dados frescos
+        $sentCount = 0;
         $state = $this->sliviService->getFullState($userId);
-        
-        // Se estiver dormindo, não notificamos (modo "Não Perturbe" natural)
-        if ($state['isSleeping']) {
-            return; 
+        $stats = $state['states'];
+
+        // 1. Gatilho de FOME
+        if (($stats['HUNGER'] ?? 100) < 50) {
+            if ($this->tryNotify($userId, 'HUNGER_LOW', 'Estou com fome! 🍔', 'O Slivi precisa comer.')) {
+                $sentCount++;
+            }
         }
 
-        $stats = $state['states']; // [HUNGER => 80, ENERGY => 90...]
-
-        // --- REGRAS DE GATILHO ---
-
-        // 1. FOME (< 30)
-        if (($stats['HUNGER'] ?? 100) < 30) {
-            $this->tryNotify($userId, 'HUNGER_LOW', 'Estou com fome! 🍔', 'O Slivi precisa comer para não ficar doente.');
+        // 2. Gatilho de SONO
+        if (($stats['ENERGY'] ?? 100) < 30) {
+            if ($this->tryNotify($userId, 'ENERGY_LOW', 'Que sono... 😴', 'O Slivi está exausto.')) {
+                $sentCount++;
+            }
         }
 
-        // 2. SONO (< 20)
-        if (($stats['ENERGY'] ?? 100) < 20) {
-            $this->tryNotify($userId, 'ENERGY_LOW', 'Que sono... 😴', 'O Slivi está exausto. Coloque-o para dormir!');
+        // 3. Gatilho de TÉDIO
+        if (($stats['FUN'] ?? 100) < 40) {
+            if ($this->tryNotify($userId, 'BORED', 'Que tédio... 🎾', 'O Slivi quer brincar!')) {
+                $sentCount++;
+            }
+        }
+        // 3. Gatilho de TÉDIO
+        if (($stats['BRAVO'] ?? 100) < 30) {
+            if ($this->tryNotify($userId, 'BRAVO', 'Grrr... 🎾', 'O Slivi está ficando bravo!')) {
+                $sentCount++;
+            }
         }
 
-        // 3. DIVERSÃO/TÉDIO (< 30)
-        if (($stats['FUN'] ?? 100) < 30) { // Assumindo que FUN existe no states
-            $this->tryNotify($userId, 'BORED', 'Que tédio... 🎾', 'O Slivi quer brincar com você!');
-        }
+        // 4. Soma as notificações de CLIMA
+        $sentCount += $this->checkWeatherConditions($userId);
 
-        // 4. CLIMA (Verifica externamente)
-        $this->checkWeatherConditions($userId);
+        return $sentCount;
     }
 
-    private function checkWeatherConditions(int $userId): void
+    /**
+     * Agora retorna quantas notificações de clima foram enviadas
+     */
+    private function checkWeatherConditions(int $userId): int
     {
-        // Busca Lat/Lon do usuário na tabela user_locations (ou users se estiver lá)
-        // Ajuste a query conforme onde você guarda a geolocalização
-        $stmt = $this->db->prepare("SELECT lat, lon FROM user_locations WHERE user_id = ? LIMIT 1");
+        $weatherSent = 0;
+        $stmt = $this->db->prepare("SELECT latitude, longitude FROM user_locations WHERE user_id = ? LIMIT 1");
         $stmt->execute([$userId]);
         $loc = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$loc) return; // Sem localização, ignoramos clima
+        if (!$loc) return 0;
 
-        // Chama seu WeatherService existente
-        $weather = $this->weatherService->getWeather((float)$loc['lat'], (float)$loc['lon']);
+        $weather = $this->weatherService->getWeather((float)$loc['latitude'], (float)$loc['longitude']);
 
-        // Frio (< 15°C)
+        // Frio
         if ($weather['temp'] < 15) {
-            $this->tryNotify($userId, 'COLD', 'Brrr! Esfriou ❄️', 'Vista o Slivi adequadamente!');
+            if ($this->tryNotify($userId, 'COLD', 'Brrr! Esfriou ❄️', 'Vista o Slivi adequadamente!')) {
+                $weatherSent++;
+            }
         }
 
         // Chuva
         if ($weather['condition'] === 'rain') {
-            $this->tryNotify($userId, 'RAIN', 'Está chovendo! ☔', 'Não deixe o Slivi pegar chuva.');
+            if ($this->tryNotify($userId, 'RAIN', 'Está chovendo! ☔', 'Não deixe o Slivi pegar chuva.')) {
+                $weatherSent++;
+            }
         }
+
+        return $weatherSent;
     }
 
     /**
-     * Verifica cooldown, salva no banco e envia PUSH
+     * Registra a atividade em um arquivo .log
      */
-    private function tryNotify(int $userId, string $type, string $title, string $message): void
+    private function logActivity(int $userId, string $type, string $title): void
     {
-        // 1. Verifica Cooldown (Anti-Spam)
+        // Define o caminho da pasta de logs (na raiz do projeto ou dentro de services)
+        $logDir = __DIR__ . '/logs';
+
+        // Cria a pasta se não existir
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0777, true);
+        }
+
+        $logFile = $logDir . '/notifications.log';
+        $timestamp = date('Y-m-d H:i:s');
+
+
+
+        $logEntry = "[$timestamp] USER: $userId | TYPE: $type | TITLE: \"$title\" " . PHP_EOL;
+
+        // Escreve no arquivo (FILE_APPEND evita sobrescrever o arquivo antigo)
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
+    }
+
+    /**
+     * Agora retorna TRUE se a notificação foi enviada ou FALSE se caiu no cooldown
+     */
+    private function tryNotify(int $userId, string $type, string $title, string $message): bool
+    {
         $lastTime = $this->getLastNotificationTime($userId, $type);
-        $cooldownMinutes = $this->cooldowns[$type] ?? 60; // Default 1h
+        $cooldownMinutes = $this->cooldowns[$type] ?? 60;
 
         if ($lastTime) {
             $minutesSince = (time() - strtotime($lastTime)) / 60;
             if ($minutesSince < $cooldownMinutes) {
-                return; // Ainda está no tempo de espera, abortar.
+                return false; // Bloqueado pelo cooldown
             }
         }
 
-        // 2. Salva no Histórico (Sininho do App)
         $this->saveNotification($userId, $type, $title, $message);
-
-        // 3. Envia Push Notification (Expo)
         $this->sendExpoPush($userId, $title, $message, ['type' => $type]);
+
+        $this->logActivity($userId, $type, $title);
+
+        return true; // Enviado com sucesso
     }
 
     /**
@@ -154,7 +195,7 @@ class NotificationService
         // Executa
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
+
         // Log de erro simples (opcional)
         if ($httpCode !== 200) {
             error_log("Erro ao enviar Expo Push User [$userId]: " . ($response ?: 'Sem resposta'));
@@ -184,7 +225,7 @@ class NotificationService
         ");
         $stmt->execute([$userId, $type, $title, $message]);
     }
-    
+
     // Método para a API listar notificações no app
     public function getNotifications(int $userId): array
     {

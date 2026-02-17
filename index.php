@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+date_default_timezone_set('America/Sao_Paulo'); 
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -98,7 +99,7 @@ try {
         $service = new NotificationService($db);
         $data = $service->getNotifications($userId);
 
-        Response::json($data);
+        Response::success($data);
     }
 
 
