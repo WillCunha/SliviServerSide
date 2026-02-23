@@ -1,10 +1,6 @@
 <?php
 
 declare(strict_types=1);
-<<<<<<< HEAD
-=======
-date_default_timezone_set('America/Sao_Paulo'); 
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -26,73 +22,80 @@ require_once __DIR__ . '/utils/Response.php';
 
 // Controllers (vamos criar depois)
 require_once __DIR__ . '/controllers/AuthController.php';
+require_once __DIR__ . '/controllers/ClothingController.php';
 require_once __DIR__ . '/controllers/CronController.php';
 require_once __DIR__ . '/controllers/FoodController.php';
 require_once __DIR__ . '/controllers/LocalizationController.php';
-<<<<<<< HEAD
 require_once __DIR__ . '/services/ObjectivesService.php';
 require_once __DIR__ . '/controllers/SliviController.php';
 require_once __DIR__ . '/controllers/SpeechController.php';
-=======
-require_once __DIR__ . '/controllers/SliviController.php';
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
 
 // Router simples
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-<<<<<<< HEAD
 // Remove /slivi-game/api do início, se existir
-=======
-// Remove /api do início, se existir
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 $path = str_replace('/slivi-game/api', '', $path);
 
 $db = Database::getConnection();
 
 try {
-    // AUTH
+    // LOGIN
     if ($path === '/auth/login' && $method === 'POST') {
 
         AuthController::login();
     }
 
+    // ATUAILZA DEVICE-TOKEN
     if ($path === '/auth/device-token' && $method === 'POST') {
         AuthController::updateDeviceToken();
         exit;
     }
 
-    // SLIVI
+    // CAPTURA STATUS
     if ($path === '/slivi/state' && $method === 'GET') {
         $controller = new SliviController($db);
         $controller->state();
     }
 
-    if ($path === '/slivi/foods' && $method === 'GET') {
-        (new FoodController($db))->index();
-        exit;
-    }
-
+    // EXECUTA UMA AÇÃO
     if ($path === '/slivi/action' && $method === 'POST') {
         $controller = new SliviController($db);
         $controller->action();
     }
 
+    //CAPTURA TODAS AS COMIDAS DISPONÍVEIS
+    if ($path === '/slivi/foods' && $method === 'GET') {
+        (new FoodController($db))->index();
+        exit;
+    }
+
+    // ATUALIZA A LOCALIZAÇÃO
     if ($path === '/location/sync' && $method === 'POST') {
         $controller = new LocalizationController($db);
         $controller->sync();
         exit;
     }
 
-<<<<<<< HEAD
-=======
-    if ($path === '/slivi/game' && $method === 'POST') {
-        $controller = new SliviController($db);
-        $controller->game();
+    // INICIO SISTEMA DE ROUPAS
+    if ($path === '/slivi/wardrobe' && $method === 'GET') {
+        (new ClothingController($db))->index();
+        exit;
     }
 
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
+    if ($path === '/slivi/wardrobe/equipped' && $method === 'GET') {
+        (new ClothingController($db))->equipped();
+        exit;
+    }
+
+    if ($path === '/slivi/wardrobe/equip' && $method === 'POST') {
+        (new ClothingController($db))->equip();
+        exit;
+    }
+    // FIM SISTEMA DE ROUPAS
+
+    // INÍCIO SISTEMA DE NOTIFICAÇÃO
     if ($path === '/cron/notify' && $method === 'GET') {
 
         $cronKey = $_GET['key'] ?? '';
@@ -106,24 +109,18 @@ try {
         exit;
     }
 
-<<<<<<< HEAD
+
     if ($path === '/slivi/notifications' && $method === 'GET') {
         $userId = 1;
-=======
-    // ROTA PARA O APP LER AS NOTIFICAÇÕES (O "Sininho" do app)
-    if ($path === '/slivi/notifications' && $method === 'GET') {
-        // Assumindo que você pega o ID do user via Header ou Token
-        // $userId = Auth::getUserId(); 
-        $userId = 1; // Fixo para teste
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
         $service = new NotificationService($db);
         $data = $service->getNotifications($userId);
 
         Response::success($data);
     }
+    // FIM SISTEMA DE NOTIFICAÇÃO
 
-<<<<<<< HEAD
+    // INICIO SISTEMA DE FALA
     if ($path === '/slivi/speech/generate' && $method === 'POST') {
         require_once __DIR__ . '/controllers/SpeechController.php';
         (new SpeechController($db))->generate();
@@ -141,7 +138,9 @@ try {
         (new SpeechController($db))->markRead();
         exit;
     }
+    // FIM SISTEMA DE FALA
 
+    // INICIO SISTEMA DE MINIGAMES
     if ($path === '/slivi/game' && $method === 'POST') {
         $controller = new SliviController($db);
         $controller->game();
@@ -166,9 +165,8 @@ try {
         Response::success($objectives);
         exit;
     }
+    // FIM SISTEMA DE MINIGAMES
 
-=======
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
     Response::error('Rota não encontrada' . $_SERVER['REQUEST_URI'], 404);
 } catch (Throwable $e) {

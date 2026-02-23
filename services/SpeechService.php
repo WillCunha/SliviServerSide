@@ -8,8 +8,8 @@ class SpeechService
 {
     private PDO $db;
     private SliviService $sliviService;
-    // private string $geminiApiKey = 'AIzaSyDz__RuJW-3Df9bnmNieKnA3cMSLhO1AsY';
-    // private string $googleAuthPath = __DIR__ . '/../config/google-auth.json';
+    // private string $geminiApiKey = '';
+    // private string $googleAuthPath = __DIR__ . '/../config/';
 
     public function __construct(PDO $db)
     {

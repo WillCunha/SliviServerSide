@@ -2,36 +2,26 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/TickService.php';
+require_once __DIR__ . '/ClothingService.php';
 require_once __DIR__ . '/FoodService.php';
 require_once __DIR__ . '/GameService.php';
+require_once __DIR__ . '/TickService.php';
 
-<<<<<<< HEAD
 
 class SliviService
 {
+    private ClothingService $clothingService;
+    private FoodService $foodService;
     private GameService $gameService;
     private PDO $db;
-    private FoodService $foodService;
-    
-=======
-class SliviService
-{
-    private GameService $scoreRep;
-    private PDO $db;
-    private FoodService $foodService;
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
+
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
-<<<<<<< HEAD
+        $this->clothingService = new ClothingService($db);
         $this->foodService = new FoodService($db);
         $this->gameService = new GameService();
-=======
-        $this->scoreRep = new GameService($db);
-        $this->foodService = new FoodService($db);
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
     }
 
     /* =========================
@@ -40,18 +30,21 @@ class SliviService
 
     public function getFullState(int $userId): array
     {
-        // 1️⃣ Busca estados atuais
+        // Busca estados atuais
         $states = $this->getCharacterStates($userId);
 
-        // 2️⃣Verifica se está dormindo
+        // Busca a roupa equipada atualmente
+        $equippedClothing = $this->clothingService->getEquipped($userId);
+
+        // Verifica se está dormindo
         $isSleeping = $this->isSleeping($userId);
 
-        // 3️⃣ Aplica Tick
+        // Aplica Tick
         $lastUpdate = $this->getLastUpdate($userId);
         $now = new DateTime();
-
         $tickService = new TickService();
         $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping);
+
 
         // 3️⃣ Salva se mudou
         if ($updatedStates !== $states) {
@@ -79,7 +72,8 @@ class SliviService
             'color'   => $color,
             'image'   => $image,
             'isSleeping' => $isSleeping,
-            'states'  => $updatedStates
+            'states'  => $updatedStates,
+            'clothing'   => $equippedClothing
         ];
     }
 
@@ -202,16 +196,11 @@ class SliviService
     ): array {
 
         switch ($game) {
-<<<<<<< HEAD
             case 'PULSE':
                 $this->handleMiniGame($userId, $game, $score, $duration);
                 break;
             case 'MAESTRO':
                 $this->handleMiniGame($userId, $game, $score, $duration);
-=======
-            case 'SLIVI-PULSE':
-                $this->handleSliviPulse($userId, $score, $duration);
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
                 break;
 
             default:
@@ -345,14 +334,9 @@ class SliviService
 
 
 
-<<<<<<< HEAD
     private function handleMiniGame(
         int $userId,
         string $game,
-=======
-    private function handleSliviPulse(
-        int $userId,
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
         int $score,
         int $duration
     ): void {
@@ -363,7 +347,6 @@ class SliviService
         }
 
         // Busca score anterior
-<<<<<<< HEAD
         $previousScore = $this->gameService->getLastScore(
             $userId,
             $game
@@ -373,17 +356,6 @@ class SliviService
         $this->gameService->save(
             $userId,
             $game,
-=======
-        $previousScore = $this->scoreRep->getLastScore(
-            $userId,
-            'SLIVI-PULSE'
-        );
-
-        // Salva score atual
-        $this->scoreRep->save(
-            $userId,
-            'SLIVI-PULSE',
->>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
             $score,
             $duration
         );
