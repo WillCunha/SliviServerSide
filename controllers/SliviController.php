@@ -5,16 +5,25 @@ declare(strict_types=1);
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth/AuthService.php';
 require_once __DIR__ . '/../services/SliviService.php';
+<<<<<<< HEAD
 require_once __DIR__ . '/../services/ObjectivesService.php';
+=======
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
 class SliviController
 {
     private SliviService $sliviService;
+<<<<<<< HEAD
     private PDO $db;
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+=======
+
+    public function __construct(PDO $db)
+    {
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
         $this->sliviService = new SliviService($db);
     }
 
@@ -92,6 +101,7 @@ class SliviController
      */
     public function game(): void
     {
+<<<<<<< HEAD
         // $gameService = new GameService();
         $objService = new ObjectivesService($this->db);
 
@@ -100,11 +110,19 @@ class SliviController
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!isset($data['game'], $data['score'], $data['stats'])) {
+=======
+        try {
+            $userId = AuthService::getUserIdFromHeader();
+            $body = json_decode(file_get_contents('php://input'), true);
+
+            if (!isset($body['game'], $body['score'])) {
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
                 throw new Exception('Dados do jogo incompletos');
             }
 
             $result = $this->sliviService->playGame(
                 $userId,
+<<<<<<< HEAD
                 strtoupper($data['game']),
                 (int)$data['score'],
                 (int)($data['duration'] ?? 0)
@@ -117,6 +135,13 @@ class SliviController
             $objService->checkProgress($data['game'], (int)$data['score'], $data['stats']);
             
 
+=======
+                strtoupper($body['game']),
+                (int)$body['score'],
+                (int)($body['duration'] ?? 0)
+            );
+
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
             Response::success($result);
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);

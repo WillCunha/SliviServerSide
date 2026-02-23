@@ -6,6 +6,7 @@ require_once __DIR__ . '/TickService.php';
 require_once __DIR__ . '/FoodService.php';
 require_once __DIR__ . '/GameService.php';
 
+<<<<<<< HEAD
 
 class SliviService
 {
@@ -13,12 +14,24 @@ class SliviService
     private PDO $db;
     private FoodService $foodService;
     
+=======
+class SliviService
+{
+    private GameService $scoreRep;
+    private PDO $db;
+    private FoodService $foodService;
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+<<<<<<< HEAD
         $this->foodService = new FoodService($db);
         $this->gameService = new GameService();
+=======
+        $this->scoreRep = new GameService($db);
+        $this->foodService = new FoodService($db);
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
     }
 
     /* =========================
@@ -189,11 +202,16 @@ class SliviService
     ): array {
 
         switch ($game) {
+<<<<<<< HEAD
             case 'PULSE':
                 $this->handleMiniGame($userId, $game, $score, $duration);
                 break;
             case 'MAESTRO':
                 $this->handleMiniGame($userId, $game, $score, $duration);
+=======
+            case 'SLIVI-PULSE':
+                $this->handleSliviPulse($userId, $score, $duration);
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
                 break;
 
             default:
@@ -327,9 +345,14 @@ class SliviService
 
 
 
+<<<<<<< HEAD
     private function handleMiniGame(
         int $userId,
         string $game,
+=======
+    private function handleSliviPulse(
+        int $userId,
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
         int $score,
         int $duration
     ): void {
@@ -340,6 +363,7 @@ class SliviService
         }
 
         // Busca score anterior
+<<<<<<< HEAD
         $previousScore = $this->gameService->getLastScore(
             $userId,
             $game
@@ -349,6 +373,17 @@ class SliviService
         $this->gameService->save(
             $userId,
             $game,
+=======
+        $previousScore = $this->scoreRep->getLastScore(
+            $userId,
+            'SLIVI-PULSE'
+        );
+
+        // Salva score atual
+        $this->scoreRep->save(
+            $userId,
+            'SLIVI-PULSE',
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
             $score,
             $duration
         );

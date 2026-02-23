@@ -48,4 +48,8 @@ class GameService
             'duration' => $duration
         ]);
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 9635734cbf4a11846b3b35f0d1d088150a6d72f7
