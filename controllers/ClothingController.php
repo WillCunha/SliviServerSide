@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../utils/Response.php';
@@ -48,21 +49,30 @@ class ClothingController
 
     /**
      * POST /slivi/wardrobe/equip
-     * Equipa uma roupa. Body esperado: { "slug": "camisa-vermelha" }
+     * Corpo esperado: { "slug": "item-slug", "action": "EQUIP" | "REMOVE" }
      */
     public function equip(): void
     {
         try {
             $userId = AuthService::getUserIdFromHeader();
-            
+
             $body = json_decode(file_get_contents('php://input'), true);
             if (!isset($body['slug'])) {
                 throw new Exception('Slug da roupa não informado.');
             }
 
-            $this->clothingService->equipClothing($userId, $body['slug']);
+            $slug = $body['slug'];
+            $action = strtoupper($body['action'] ?? 'EQUIP');
 
-            Response::success(['message' => 'Roupa equipada com sucesso!', 'slug' => $body['slug']]);
+            if ($action === 'REMOVE') {
+                // Lógica para tirar a roupa
+                $this->clothingService->unequipClothing($userId, $slug);
+                Response::success(['message' => 'Roupa removida!', 'slug' => $slug]);
+            } else {
+                // Lógica padrão para equipar (já existente)
+                $this->clothingService->equipClothing($userId, $slug);
+                Response::success(['message' => 'Roupa equipada com sucesso!', 'slug' => $slug]);
+            }
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);
         }

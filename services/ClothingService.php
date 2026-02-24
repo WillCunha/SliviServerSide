@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 class ClothingService
@@ -10,22 +11,37 @@ class ClothingService
         $this->db = $db;
     }
 
-    // Puxa todas as roupas que o usuário possui no guarda-roupas
+    //Pega todas as roupas do usuario no guarda-roupas dele
     public function getWardrobe(int $userId): array
     {
         $stmt = $this->db->prepare("
-            SELECT c.id, c.name, c.slug 
-            FROM slivi_clothes c
-            INNER JOIN slivi_user_wardrobe uw ON c.id = uw.cloth_id
-            WHERE uw.user_id = ?
-            ORDER BY c.name
-        ");
+        SELECT c.id, c.name, c.slug, c.temperature, c.category
+        FROM slivi_clothes c
+        INNER JOIN slivi_user_wardrobe uw ON c.id = uw.cloth_id
+        WHERE uw.user_id = ?
+        ORDER BY c.name
+    ");
         $stmt->execute([$userId]);
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $grouped = [];
+
+        foreach ($rows as $item) {
+            $category = $item['category'];
+
+            // cria a categoria se ainda não existir
+            if (!isset($grouped[$category])) {
+                $grouped[$category] = [];
+            }
+
+            $grouped[$category][] = $item;
+        }
+
+        return $grouped;
     }
 
-// Puxa as roupas que estão equipadas, organizadas por categoria
+    // Puxa as roupas que estão equipadas, organizadas por categoria
     public function getEquipped(int $userId): array
     {
         $stmt = $this->db->prepare("
@@ -67,5 +83,22 @@ class ClothingService
                 updated_at = NOW()
         ");
         $stmt->execute([$userId, $category, $slug]);
+    }
+
+    public function unequipClothing(int $userId, string $slug): void
+    {
+        $stmtCat = $this->db->prepare("SELECT category FROM slivi_clothes WHERE slug = ? LIMIT 1");
+        $stmtCat->execute([$slug]);
+        $cloth = $stmtCat->fetch(PDO::FETCH_ASSOC);
+
+        if ($cloth) {
+            $category = $cloth['category'];
+            
+            $stmt = $this->db->prepare("
+            DELETE FROM slivi_user_equipped_clothes 
+            WHERE user_id = ? AND category = ?
+        ");
+            $stmt->execute([$userId, $category]);
+        }
     }
 }
