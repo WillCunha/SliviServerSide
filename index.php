@@ -25,6 +25,7 @@ require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/ClothingController.php';
 require_once __DIR__ . '/controllers/CronController.php';
 require_once __DIR__ . '/controllers/FoodController.php';
+require_once __DIR__ . '/controllers/GameQuizController.php';
 require_once __DIR__ . '/controllers/LocalizationController.php';
 require_once __DIR__ . '/services/ObjectivesService.php';
 require_once __DIR__ . '/controllers/SliviController.php';
@@ -166,6 +167,18 @@ try {
         exit;
     }
     // FIM SISTEMA DE MINIGAMES
+
+    // INÍCIO SISTEMA GAME QUIZ BATTLE
+    if ($path === '/slivi/game/quiz/questions' && $method === 'GET') {
+        (new GameQuizController($db))->getQuestions();
+        exit;
+    }
+
+    if ($path === '/slivi/game/quiz/finish' && $method === 'POST') {
+        (new GameQuizController($db))->finishMatch();
+        exit;
+    }
+    // FIM SISTEMA GAME QUIZ BATTLE
 
 
     Response::error('Rota não encontrada' . $_SERVER['REQUEST_URI'], 404);
