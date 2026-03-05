@@ -85,6 +85,12 @@ class GameQuizService
         $handP1 = array_slice($allIds, 0, 7);
         $deck = array_slice($allIds, 7); // Guarda o resto (23) no deck
 
+        $stmt = $this->db->prepare('SELECT * FROM users  WHERE id = :id');
+
+        $stmt->execute(['id' => $hostId]);
+        $user = $stmt->fetch();
+        $userName = $user['username'];
+
         $roomId = $this->generateRoomCode(6);
 
         $roomData = [
@@ -96,7 +102,7 @@ class GameQuizService
             'deck' => $deck,
             'players' => [
                 $hostId => [
-                    'name' => 'Jogador 1', // Puxe do banco de dados se quiser
+                    'name' => $userName, // Puxe do banco de dados se quiser
                     'score' => 0,
                     'hand_count' => 7,
                     'hand' => $handP1
@@ -130,7 +136,7 @@ class GameQuizService
         $logFile = $logDir . '/firebase.log';
         $timestamp = date('Y-m-d H:i:s');
 
-        
+
         // Escreve no arquivo (FILE_APPEND evita sobrescrever o arquivo antigo)
         foreach ($rooms as $roomId => $data) {
             if (($data['status'] ?? '') === 'waiting' && ($data['is_public'] ?? false) === true) {
@@ -157,11 +163,17 @@ class GameQuizService
         $handP2 = array_slice($currentDeck, 0, 7);
         $newDeck = array_slice($currentDeck, 7); // Restam 16 no baralho da mesa
 
+        $stmt = $this->db->prepare('SELECT * FROM users  WHERE id = :id');
+
+        $stmt->execute(['id' => $guestId]);
+        $user = $stmt->fetch();
+        $userName = $user['username'];
+
         $updates = [
             "status" => "playing",
             "deck" => $newDeck,
             "players/{$guestId}" => [
-                'name' => 'Jogador 2',
+                'name' => $userName,
                 'score' => 0,
                 'hand_count' => 7,
                 'hand' => $handP2
