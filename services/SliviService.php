@@ -116,22 +116,18 @@ class SliviService
 
     public function createInitialState(int $userId): void
     {
-        // Emoção inicial
-        $stmt = $this->db->prepare("
-            INSERT INTO emotions (user_id, emotion, color, face_expression)
-            VALUES (?, 'FELIZ', '#FFA500', 'body_laranja_feliz.png')
-        ");
-        $stmt->execute([$userId]);
 
         // Estados iniciais
         $stmt = $this->db->prepare("
             INSERT INTO character_states (user_id, state, value) VALUES
-            (?, 'HUNGER', 80),
-            (?, 'ENERGY', 90),
-            (?, 'SLEEP', 70),
-            (?, 'TEMPERATURE', 50)
+            (?, 'HUNGER', 100),
+            (?, 'ENERGY', 100),
+            (?, 'SLEEP', 100),
+            (?, 'TEMPERATURE', 50),
+            (?, 'FUN', 50),
+            (?, 'BRAVO', 0)
         ");
-        $stmt->execute([$userId, $userId, $userId, $userId]);
+        $stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId]);
     }
 
     /* =========================
@@ -218,7 +214,7 @@ class SliviService
         $energy = $states['ENERGY'] ?? 100;
         $hunger = $states['HUNGER'] ?? 100;
         $sleep  = $states['SLEEP'] ?? 100;
-        $stress = $states['STRESS'] ?? 100;
+        $bravo = $states['BRAVO'] ?? 100;
 
         if ($energy < 30) {
             return ['ASSUSTADO', '#800080', 'body_roxo_assustado.png'];
@@ -228,7 +224,7 @@ class SliviService
             return ['BRAVO', '#00FF00', 'body_verde_bravo.png'];
         }
 
-        if ($stress > 80) {
+        if ($bravo > 80) {
             return ['NERVOSO', '#FF0000', 'body_vermelho_nervoso.png'];
         }
 

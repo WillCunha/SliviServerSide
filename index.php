@@ -30,6 +30,7 @@ require_once __DIR__ . '/controllers/LocalizationController.php';
 require_once __DIR__ . '/services/ObjectivesService.php';
 require_once __DIR__ . '/controllers/SliviController.php';
 require_once __DIR__ . '/controllers/SpeechController.php';
+require_once __DIR__ . '/controllers/UserController.php';
 
 
 // Router simples
@@ -42,15 +43,36 @@ $path = str_replace('/slivi-game/api', '', $path);
 $db = Database::getConnection();
 
 try {
+
     // LOGIN
     if ($path === '/auth/login' && $method === 'POST') {
-
         AuthController::login();
+    }
+
+    // VERIFICA DISPONIBILIDADE (EMAIL / USERNAME)
+    if ($path === '/auth/check-availability' && $method === 'POST') {
+        AuthController::checkAvailability();
+        exit;
+    }
+
+    // REGISTRO DE USUÁRIO
+    if ($path === '/auth/register' && $method === 'POST') {
+        AuthController::register();
+        exit;
     }
 
     // ATUAILZA DEVICE-TOKEN
     if ($path === '/auth/device-token' && $method === 'POST') {
         AuthController::updateDeviceToken();
+        exit;
+    }
+
+    // BUSCA PERFIL DE USUÁRIO (Ex: GET /users/joaosilva ou /users/@joaosilva)
+    if ($method === 'GET' && preg_match('#^/slivi/users/@?([a-zA-Z0-9._-]+)$#', $path, $matches)) {
+        require_once __DIR__ . '/controllers/UserController.php';
+
+        $username = $matches[1];
+        UserController::getProfile($username);
         exit;
     }
 
@@ -112,10 +134,9 @@ try {
 
 
     if ($path === '/slivi/notifications' && $method === 'GET') {
-        $userId = 1;
 
         $service = new NotificationService($db);
-        $data = $service->getNotifications($userId);
+        $data = $service->getNotifications();
 
         Response::success($data);
     }
@@ -169,8 +190,18 @@ try {
     // FIM SISTEMA DE MINIGAMES
 
     // INÍCIO SISTEMA GAME QUIZ BATTLE
-    if ($path === '/slivi/game/quiz/questions' && $method === 'GET') {
-        (new GameQuizController($db))->getQuestions();
+    if ($path === '/slivi/game/quiz/create' && $method === 'POST') {
+        (new GameQuizController($db))->createRoom();
+        exit;
+    }
+
+    if ($path === '/slivi/game/quiz/join' && $method === 'POST') {
+        (new GameQuizController($db))->joinRoom();
+        exit;
+    }
+
+    if ($path === '/slivi/game/quiz/matchmake' && $method === 'POST') {
+        (new GameQuizController($db))->matchmake();
         exit;
     }
 

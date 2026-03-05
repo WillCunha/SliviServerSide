@@ -5,6 +5,7 @@ declare(strict_types=1);
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
+require_once __DIR__ . '/../auth/AuthService.php';
 require_once __DIR__ . '/SliviService.php';
 require_once __DIR__ . '/WeatherServices.php';
 
@@ -227,8 +228,11 @@ class NotificationService
     }
 
     // Método para a API listar notificações no app
-    public function getNotifications(int $userId): array
+    public function getNotifications(): array
     {
+
+        $userId = AuthService::getUserIdFromHeader();
+
         $stmt = $this->db->prepare("
             SELECT id, type, title, message, created_at, is_read 
             FROM slivi_notifications 
