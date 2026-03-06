@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 class ExperienceService
 {
     private $db;
-    
+
     // Configuração de progressão: Nível * 500 (Ex: Level 1 precisa de 500, Level 2 de 1000...)
-    private $xpMultiplier = 500; 
+    private $xpMultiplier = 500;
 
     public function __construct($db)
     {
@@ -22,12 +24,13 @@ class ExperienceService
         $stmt->execute(['id' => $userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user) return ['error' => 'Usuário não encontrado!'];
-
+        if (!$user) {
+            throw new Exception('Usuário não encontrado no sistema de Experiência!');
+        }
         $currentXP = (int)$user['experience'];
         $currentLevel = (int)$user['level'];
         $newXP = $currentXP + $amount;
-        
+
         $leveledUp = false;
 
         // 2. Lógica de Level Up
