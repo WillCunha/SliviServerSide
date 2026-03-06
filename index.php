@@ -211,6 +211,42 @@ try {
     }
     // FIM SISTEMA GAME QUIZ BATTLE
 
+    // INÍCIO SISTEMA DE SELOS (CONQUISTAS)
+    if ($path === '/slivi/seals' && $method === 'GET') {
+        require_once __DIR__ . '/services/SealService.php';
+        require_once __DIR__ . '/auth/AuthService.php'; // Garante que a classe Auth está disponível
+
+        $userId = AuthService::getUserIdFromHeader();
+        $service = new SealService($db);
+
+        // Passamos null para o game, assim o service retorna todos
+        $seals = $service->getUserSeals($userId, null);
+
+        Response::success($seals);
+        exit;
+    }
+
+    if ($method === 'GET' && preg_match('#^/slivi/seals/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+        require_once __DIR__ . '/services/SealService.php';
+        require_once __DIR__ . '/auth/AuthService.php';
+
+        $game = $matches[1]; // pulse | maestro | quiz | slivi | special
+
+        $allowedCategories = ['pulse', 'maestro', 'quiz', 'slivi', 'special'];
+        if (!in_array($game, $allowedCategories)) {
+            Response::error('Categoria de selos inválida', 400);
+            exit;
+        }
+
+        $userId = AuthService::getUserIdFromHeader();
+        $service = new SealService($db);
+        $seals = $service->getUserSeals($userId, $game);
+
+        Response::success($seals);
+        exit;
+    }
+    // FIM SISTEMA DE SELOS
+
 
     Response::error('Rota não encontrada' . $_SERVER['REQUEST_URI'], 404);
 } catch (Throwable $e) {
