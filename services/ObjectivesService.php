@@ -58,6 +58,7 @@ class ObjectivesService
     public function checkProgress(string $game, int $score, array $stats)
     {
         $active = $this->getActiveObjectives($game);
+        $unlockedClothes = [];
 
         foreach ($active as $obj) {
 
@@ -129,16 +130,29 @@ class ObjectivesService
 
                 // 3. Roupa para o Guarda-Roupa (slivi_user_wardrobe)
                 if (!empty($obj['reward_clothing_id'])) {
-                    $stmtWardrobe = $this->db->prepare("
-                        INSERT IGNORE INTO slivi_user_wardrobe (user_id, cloth_id) 
-                        VALUES (:u, :c)
-                    ");
-                    $stmtWardrobe->execute([
-                        'u' => $obj['user_id'],
-                        'c' => $obj['reward_clothing_id']
-                    ]);
+                    try {
+                        $stmtWardrobe = $this->db->prepare("
+                            INSERT IGNORE INTO slivi_user_wardrobe (user_id, cloth_id) 
+                            VALUES (:u, :c)
+                        ");
+                        $stmtWardrobe->execute([
+                            'u' => $obj['user_id'],
+                            'c' => $obj['reward_clothing_id']
+                        ]);
+
+                        // Verificamos se a inserção realmente ocorreu
+                        if ($stmtWardrobe->rowCount() > 0) {
+                            $unlockedClothes[] = $obj['reward_clothing_id']; // 👈 Adiciona ao array de conquistas
+                        }
+                    } catch (PDOException $e) {
+                        // Isso vai nos ajudar a debugar o problema 1 no log do servidor!
+                        error_log("ERRO AO INSERIR ROUPA: " . $e->getMessage());
+                    }
                 }
+
+                return $unlockedClothes; 
             }
+
 
             $lastReset = ($status === 'completed')
                 ? $obj['last_reset_at']

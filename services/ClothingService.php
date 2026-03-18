@@ -11,6 +11,35 @@ class ClothingService
         $this->db = $db;
     }
 
+    // Busca os detalhes de uma única roupa pelo ID
+    public function getClothById(int $clothId): ?array
+    {
+        $stmt = $this->db->prepare("
+            SELECT id, name, slug, temperature, category 
+            FROM slivi_clothes 
+            WHERE id = ? 
+            LIMIT 1
+        ");
+        $stmt->execute([$clothId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function createWardrobe(int $userId): void
+    {
+        // Estados iniciais
+        $stmt = $this->db->prepare("
+            INSERT INTO slivi_user_wardrobe (user_id, cloth_id, value) VALUES
+            (?, 1),
+            (?, 2),
+            (?, 4),
+            (?, 5),
+            (?, 6),
+        ");
+        $stmt->execute([$userId, $userId, $userId, $userId, $userId]);
+    }
+
     //Pega todas as roupas do usuario no guarda-roupas dele
     public function getWardrobe(int $userId): array
     {
@@ -93,7 +122,7 @@ class ClothingService
 
         if ($cloth) {
             $category = $cloth['category'];
-            
+
             $stmt = $this->db->prepare("
             DELETE FROM slivi_user_equipped_clothes 
             WHERE user_id = ? AND category = ?

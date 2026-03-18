@@ -116,13 +116,14 @@ class SliviController
 
             // 2. Processa os objetivos
             // O array 'stats' deve vir do app com tudo: 'max_score', 'fever_count', etc.
-            $objService->checkProgress($data['game'], (int)$data['score'], $data['stats']);
+            $unlockedClothes = $objService->checkProgress($data['game'], (int)$data['score'], $data['stats']);
 
             $unlockedSeals = $sealService->checkSealsProgress($userId, strtolower($data['game']), $data['stats']);
 
             Response::success([
                 'game_result' => $result,
-                'unlocked_seals' => $unlockedSeals // O app pode usar isso para pipocar a conquista na tela!
+                'unlocked_seals' => $unlockedSeals,
+                'unlocked_clothes' => $unlockedClothes // O app pode usar isso para pipocar a conquista na tela!
             ]);
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);

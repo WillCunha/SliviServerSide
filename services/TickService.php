@@ -11,14 +11,12 @@ class TickService
     private array $rates = [
         'HUNGER' => -0.25,
         'ENERGY' => -0.20,
-        'SLEEP'  => -0.15,
         'STRESS' =>  0.10,
     ];
 
     // Taxas quando está dormindo
     private array $sleepRates = [
         'ENERGY' => +0.30,
-        'SLEEP'  => +0.40,
         'FUN'    => -0.05,
         'HUNGER' => -0.15,
     ];

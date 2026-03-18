@@ -122,7 +122,6 @@ class SliviService
             INSERT INTO character_states (user_id, state, value) VALUES
             (?, 'HUNGER', 100),
             (?, 'ENERGY', 100),
-            (?, 'SLEEP', 100),
             (?, 'TEMPERATURE', 50),
             (?, 'FUN', 50),
             (?, 'BRAVO', 0)
@@ -213,7 +212,6 @@ class SliviService
     {
         $energy = $states['ENERGY'] ?? 100;
         $hunger = $states['HUNGER'] ?? 100;
-        $sleep  = $states['SLEEP'] ?? 100;
         $bravo = $states['BRAVO'] ?? 100;
 
         if ($energy < 30) {
@@ -226,10 +224,6 @@ class SliviService
 
         if ($bravo > 80) {
             return ['NERVOSO', '#FF0000', 'body_vermelho_nervoso.png'];
-        }
-
-        if ($sleep < 25) {
-            return ['CANSADO', '#808080', 'body_cinza_cansado.png'];
         }
 
         if ($energy < 40) {

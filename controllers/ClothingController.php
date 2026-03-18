@@ -32,6 +32,25 @@ class ClothingController
     }
 
     /**
+     * GET /slivi/wardrobe/cloth/{id}
+     * Retorna os detalhes de uma roupa específica
+     */
+    public function show(int $id): void
+    {
+        try {
+            $cloth = $this->clothingService->getClothById($id);
+
+            if (!$cloth) {
+                throw new Exception("Roupa não encontrada.");
+            }
+
+            Response::success($cloth);
+        } catch (Exception $e) {
+            Response::error($e->getMessage(), 404);
+        }
+    }
+
+    /**
      * GET /slivi/wardrobe/equipped
      * Retorna apenas a roupa equipada atualmente
      */

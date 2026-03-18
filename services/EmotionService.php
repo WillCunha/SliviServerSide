@@ -6,7 +6,7 @@ class EmotionService
     public function calculate(array $s): string
     {
         // Estados críticos (prioridade máxima)
-        if ($s['energy'] < 20 || $s['sleep'] < 20) {
+        if ($s['energy'] < 20 ) {
             return 'CANSADO';
         }
 

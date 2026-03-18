@@ -102,6 +102,15 @@ try {
     }
 
     // INICIO SISTEMA DE ROUPAS
+
+    // Rota para buscar roupa específica por ID
+    if ($method === 'GET' && preg_match('#^/slivi/wardrobe/cloth/([0-9]+)$#', $path, $matches)) {
+        require_once __DIR__ . '/controllers/ClothingController.php';
+        $clothId = (int)$matches[1];
+        (new ClothingController($db))->show($clothId);
+        exit;
+    }
+
     if ($path === '/slivi/wardrobe' && $method === 'GET') {
         (new ClothingController($db))->index();
         exit;

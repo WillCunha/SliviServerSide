@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth/AuthService.php';
+require_once __DIR__ . '/../services/ClothingService.php';
 require_once __DIR__ . '/../services/SliviService.php';
 
 class AuthController
@@ -177,6 +178,9 @@ class AuthController
 
         $sliviService = new SliviService($db);
         $sliviService->createInitialState($userId);
+
+        $clothingService = new ClothingService($db);
+        $clothingService->createWardrobe($userId);
 
         // 7. Retorna sucesso com o token
         Response::success([
