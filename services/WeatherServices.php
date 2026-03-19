@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 class WeatherServices
@@ -14,7 +15,7 @@ class WeatherServices
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -24,7 +25,8 @@ class WeatherServices
             return [
                 'temp' => 25,
                 'condition' => 'sun',
-                'is_day' => 1
+                'is_day' => 1,
+                'local_hour' => 12
             ];
         }
 
@@ -37,7 +39,7 @@ class WeatherServices
     {
         $conditionCode = $data['current']['condition']['code'];
         $isDay = $data['current']['is_day']; // 1 = dia, 0 = noite
-        
+
         // Mapeamento simplificado (WeatherAPI Codes)
         $gameCondition = 'sun';
 
@@ -49,16 +51,24 @@ class WeatherServices
         elseif (in_array($conditionCode, [1003, 1006, 1009])) {
             $gameCondition = 'cloudy';
         }
-        
+
         // Se for noite e não estiver chovendo, forçamos 'night' para o background
         if ($isDay === 0 && $gameCondition !== 'rain') {
             $gameCondition = 'night';
         }
 
+        // O WeatherAPI devolve 'localtime' no formato "YYYY-MM-DD HH:mm" (ex: "2023-10-25 14:30")
+        $localTimeStr = $data['location']['localtime'];
+
+        // Extraímos apenas a hora (0 a 23) para facilitar a vida do React Native
+        $localHour = (int) date('H', strtotime($localTimeStr));
+
         return [
             'temp' => (int) $data['current']['temp_c'],
             'condition' => $gameCondition, // 'rain', 'sun', 'cloudy', 'night'
-            'is_day' => (bool) $isDay
+            'is_day' => (bool) $isDay,
+            'local_hour' => $localHour, // <-- Enviando a hora da API para o App
+            'local_time_full' => $localTimeStr // Opcional: enviar a data/hora completa se o app precisar
         ];
     }
 }
