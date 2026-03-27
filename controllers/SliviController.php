@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/MealController.php';
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth/AuthService.php';
 require_once __DIR__ . '/../services/SliviService.php';
@@ -10,12 +11,14 @@ require_once __DIR__ . '/../services/ObjectivesService.php';
 
 class SliviController
 {
+    private MealController $mealController;
     private SliviService $sliviService;
     private PDO $db;
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+        $this->mealController = new MealController($this->db);
         $this->sliviService = new SliviService($db);
     }
 
@@ -26,24 +29,21 @@ class SliviController
     public function state(): void
     {
         try {
-            // 1️⃣ Valida token e obtém user_id
             $userId = AuthService::getUserIdFromHeader();
-
-            // 2️⃣ Busca estado completo
             try {
                 $state = $this->sliviService->getFullState($userId);
             } catch (Exception $e) {
-                // 3️⃣ Se não existir estado, cria o inicial
                 $this->sliviService->createInitialState($userId);
                 $state = $this->sliviService->getFullState($userId);
             }
 
-            // 4️⃣ Retorna para o app
             Response::success($state);
         } catch (Exception $e) {
             Response::error($e->getMessage(), 401);
         }
     }
+
+
 
     /**
      * POST /slivi/action
@@ -65,14 +65,20 @@ class SliviController
             }
 
             $action = strtoupper($body['action']);
-            $foodId = $body['foodId'] ?? null; // 👈 agora é opcional
+            $foodId = $body['food_ids'] ?? null;
 
-            // 🎮 Executa a ação no Slivi
-            $result = $this->sliviService->performAction(
-                $userId,
-                $action,
-                $foodId
-            );
+            if ($action === 'FEED') {
+                if (!$foodId) {
+                    throw new Exception('Food ID é obrigatório');
+                }
+
+                $this->mealController->feed($userId, $foodId);
+            } else {
+                $result = $this->sliviService->performAction(
+                    $userId,
+                    $action
+                );
+            }
 
             // 📤 Retorna novo estado
             Response::success($result);
@@ -100,6 +106,17 @@ class SliviController
         try {
             $userId = AuthService::getUserIdFromHeader();
             $data = json_decode(file_get_contents('php://input'), true);
+
+            $logDir = __DIR__ . '/logs';
+
+            $timestamp = date('Y-m-d_H-i-s'); // evite espaços no nome do arquivo
+            $logFile = $logDir . '/game-' . $timestamp . '.log';
+
+            file_put_contents(
+                $logFile,
+                json_encode($data['stats'], JSON_PRETTY_PRINT),
+                FILE_APPEND
+            );
 
             if (!isset($data['game'], $data['score'], $data['stats'])) {
                 throw new Exception('Dados do jogo incompletos');

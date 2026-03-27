@@ -47,7 +47,7 @@ class ObjectivesService
         WHERE u.user_id = :user_id
           AND t.game = :game
           AND u.status = 'active'
-          AND t.active = 1
+          AND t.active = 1 ORDER BY id LIMIT 1
         ");
 
         $stmt->execute(['user_id' => $userId, 'game' => $game]);
@@ -149,8 +149,6 @@ class ObjectivesService
                         error_log("ERRO AO INSERIR ROUPA: " . $e->getMessage());
                     }
                 }
-
-                return $unlockedClothes; 
             }
 
 
@@ -173,6 +171,8 @@ class ObjectivesService
                 'id' => $obj['id']
             ]);
         }
+
+        return $unlockedClothes;
     }
 
     private function shouldReset(array $obj): bool

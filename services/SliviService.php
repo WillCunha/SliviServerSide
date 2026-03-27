@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+
 require_once __DIR__ . '/ClothingService.php';
+require_once __DIR__ . '/ExperienceService.php';
 require_once __DIR__ . '/FoodService.php';
 require_once __DIR__ . '/GameService.php';
 require_once __DIR__ . '/TickService.php';
@@ -11,6 +13,7 @@ require_once __DIR__ . '/TickService.php';
 class SliviService
 {
     private ClothingService $clothingService;
+    private ExperienceService $experienceService;
     private FoodService $foodService;
     private GameService $gameService;
     private PDO $db;
@@ -20,6 +23,7 @@ class SliviService
     {
         $this->db = $db;
         $this->clothingService = new ClothingService($db);
+        $this->experienceService = new ExperienceService($db);
         $this->foodService = new FoodService($db);
         $this->gameService = new GameService();
     }
@@ -35,6 +39,9 @@ class SliviService
 
         // Busca a roupa equipada atualmente
         $equippedClothing = $this->clothingService->getEquipped($userId);
+
+        // Busca o XP atual e o nível que o usuario está
+        $experienceLevel = $this->experienceService->getXPLevel($userId);
 
         // Verifica se está dormindo
         $isSleeping = $this->isSleeping($userId);
@@ -73,7 +80,8 @@ class SliviService
             'image'   => $image,
             'isSleeping' => $isSleeping,
             'states'  => $updatedStates,
-            'clothing'   => $equippedClothing
+            'xpLevel' => $experienceLevel,
+            'clothing'   => $equippedClothing,
         ];
     }
 
@@ -133,20 +141,9 @@ class SliviService
        ACTIONS (GAMEPLAY)
        ========================= */
 
-    public function performAction(int $userId, string $action, ?int $foodId = null): array
+    public function performAction(int $userId, string $action, ?array $foodId = null): array
     {
         switch ($action) {
-            case 'FEED':
-                if (!$foodId) {
-                    throw new Exception('Food ID é obrigatório');
-                }
-
-                $food = $this->foodService->getById($foodId);
-
-                $this->changeState($userId, 'HUNGER', (int) $food['hunger']);
-                $this->changeState($userId, 'ENERGY', (int) $food['energy']);
-                break;
-
             case 'PLAY':
                 $this->changeState($userId, 'ENERGY', -10);
                 $this->changeState($userId, 'FUN', +20);
@@ -178,6 +175,9 @@ class SliviService
         if (!$current || $current['emotion'] !== $emotion) {
             $this->addEmotion($userId, $emotion, $color, $image);
         }
+
+        $experience = random_int(10, 100);
+        $this->experienceService->addXP($userId, $experience);
 
         return $this->getFullState($userId);
     }
@@ -243,7 +243,7 @@ class SliviService
        HELPERS
        ========================= */
 
-    private function changeState(int $userId, string $state, int $delta): void
+    public function changeState(int $userId, string $state, int $delta): void
     {
         $stmt = $this->db->prepare("
             UPDATE character_states

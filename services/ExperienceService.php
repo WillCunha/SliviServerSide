@@ -60,6 +60,32 @@ class ExperienceService
     }
 
     /**
+     * Busca a pontuaçao atual e o nivel do usuario
+     * 
+     */
+    public function getXPLevel(int $userId): array
+    {
+        // 1. Busca dados atuais do usuário
+        $stmt = $this->db->prepare("SELECT experience, level FROM users WHERE id = :id");
+        $stmt->execute(['id' => $userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            throw new Exception('Usuário não encontrado no sistema de Experiência!');
+        }
+
+
+        $data = [
+            'currentXP' => $user['experience'],
+            'currentLevel' => $user['level'],
+            'next_level_xp' => $this->getXPForNextLevel($user['level']),
+        ];
+
+        return $data;
+
+    }
+
+    /**
      * Define quanto de XP é necessário para passar do nível atual para o próximo
      */
     public function getXPForNextLevel(int $currentLevel): int
