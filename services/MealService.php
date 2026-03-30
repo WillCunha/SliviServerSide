@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/FoodService.php';
 require_once __DIR__ . '/ExperienceService.php';
 require_once __DIR__ . '/SliviService.php';
+require_once __DIR__ . '/AffectionService.php';
 
 class MealService
 {
@@ -12,6 +13,7 @@ class MealService
     private FoodService $foodService;
     private ExperienceService $experienceService;
     private SliviService $sliviService;
+    private AffectionService $affectionService;
 
     public function __construct(PDO $db)
     {
@@ -19,6 +21,7 @@ class MealService
         $this->foodService = new FoodService($db);
         $this->experienceService = new ExperienceService($db);
         $this->sliviService = new SliviService($db);
+        $this->affectionService = new AffectionService($db);
     }
 
     /**
@@ -70,7 +73,7 @@ class MealService
     }
 
     /**
-     * Processa a refeição, checa enjoo, combos e salva no histórico.
+     * Processa a refeição, checa enjoo, combos, afeto e salva no histórico.
      */
     public function processMeal(int $userId, array $foodIds): array
     {
@@ -78,13 +81,16 @@ class MealService
         $totalHunger = 0;
         $totalBaseXp = 0;
 
+        // 1. Busca os alimentos e calcula a base
         foreach ($foodIds as $id) {
             $food = $this->foodService->getById((int)$id);
+            $this->foodService->consumeFood($userId, $id);
             $foods[] = $food;
             $totalHunger += (int)$food['hunger'];
             $totalBaseXp += ((int)$food['hunger'] * 2);
         }
 
+        // 2. Busca histórico recente
         $stmt = $this->db->prepare("
             SELECT food_ids, combo_word 
             FROM slivi_feed_historic 
@@ -95,6 +101,7 @@ class MealService
         $stmt->execute([$userId]);
         $recentMeals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // 3. Checagem de Enjoo (Comida repetida)
         $sickFoodName = null;
         foreach ($foodIds as $currentFoodId) {
             $timesEatenRecently = 0;
@@ -110,8 +117,8 @@ class MealService
             }
         }
 
+        // 4. Avaliação de Combos e Spam
         $comboResult = $this->evaluateCombo($foods);
-
         $sortedFoodIds = $foodIds;
         sort($sortedFoodIds);
         $currentCombinationJson = json_encode($sortedFoodIds);
@@ -130,12 +137,25 @@ class MealService
             $comboResult = ['word' => null, 'multiplier' => 1.0];
         }
 
+        // 5. Cálculo final de XP
         $finalXp = (int)($totalBaseXp * $comboResult['multiplier']);
-
         if ($sickFoodName) {
             $finalXp = (int)($finalXp / 2);
         }
 
+        // 6. Cálculo de Pontos de Afeto (NOVO)
+        $affectionPoints = 15; // Base: Comida correta (+15)
+        
+        if (in_array($comboResult['word'], ['DIVINE', 'DELICIOUS'])) {
+            $affectionPoints = 25; // Comida perfeita (+25)
+        }
+
+        // Lógica extra: se ele está enjoado da comida, ganha bem menos afeto (ou até perde, se preferir)
+        if ($sickFoodName) {
+            $affectionPoints = 5; 
+        }
+
+        // 7. Salva histórico e aplica as mudanças
         $insertStmt = $this->db->prepare("
             INSERT INTO slivi_feed_historic (user_id, food_ids, combo_word) 
             VALUES (?, ?, ?)
@@ -144,13 +164,19 @@ class MealService
 
         $this->experienceService->addXP($userId, $finalXp);
         $this->sliviService->changeState($userId, 'HUNGER', $totalHunger);
+        
+        // Aplica o afeto e pega o resultado (para saber se subiu de nível)
+        $affectionResult = $this->affectionService->modifyAffection($userId, $affectionPoints);
 
+        // 8. Retorno atualizado
         return [
             'success' => true,
             'total_hunger_restored' => $totalHunger,
             'total_xp_gained' => $finalXp,
             'combo_word' => $comboResult['word'],
-            'sick_message' => $sickFoodName ? 200 : 404
+            'sick_message' => $sickFoodName ? 200 : 404,
+            'affection_gained' => $affectionPoints,
+            'new_relation_level' => $affectionResult['level_name']
         ];
     }
 }

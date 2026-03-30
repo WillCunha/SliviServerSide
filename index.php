@@ -31,6 +31,7 @@ require_once __DIR__ . '/services/ObjectivesService.php';
 require_once __DIR__ . '/controllers/SliviController.php';
 require_once __DIR__ . '/controllers/SpeechController.php';
 require_once __DIR__ . '/controllers/UserController.php';
+require_once __DIR__ . '/controllers/WalletController.php';
 
 
 // Router simples
@@ -88,18 +89,32 @@ try {
         $controller->action();
     }
 
-    //CAPTURA TODAS AS COMIDAS DISPONÍVEIS
-    if ($path === '/slivi/foods' && $method === 'GET') {
-        (new FoodController($db))->index();
-        exit;
-    }
-
     // ATUALIZA A LOCALIZAÇÃO
     if ($path === '/location/sync' && $method === 'POST') {
         $controller = new LocalizationController($db);
         $controller->sync();
         exit;
     }
+
+    // --- INÍCIO SISTEMA DE COMIDA / GELADEIRA ---
+    // Mercado de comidas
+    if ($path === '/slivi/market/foods' && $method === 'GET') {
+        (new FoodController($db))->market();
+        exit;
+    }
+
+    // Comprar no mercado
+    if ($path === '/slivi/market/buy' && $method === 'POST') {
+        (new FoodController($db))->buy();
+        exit;
+    }
+
+    // Ver a própria geladeira
+    if ($path === '/slivi/fridge' && $method === 'GET') {
+        (new FoodController($db))->fridge();
+        exit;
+    }
+    // --- FIM SISTEMA DE COMIDA / GELADEIRA ---
 
     // INICIO SISTEMA DE ROUPAS
 
@@ -255,6 +270,13 @@ try {
         exit;
     }
     // FIM SISTEMA DE SELOS
+
+    // INÍCIO SISTEMA DE WALLET
+    if ($path === '/slivi/wallet/balance' && $method === 'GET') {
+        (new WalletController($db))->balance();
+        exit;
+    }
+    // FIM SISTEMA DE WALLET
 
 
     Response::error('Rota não encontrada' . $_SERVER['REQUEST_URI'], 404);

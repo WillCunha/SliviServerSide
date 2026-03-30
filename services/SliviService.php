@@ -3,29 +3,32 @@
 declare(strict_types=1);
 
 
+require_once __DIR__ . '/AffectionService.php';
 require_once __DIR__ . '/ClothingService.php';
 require_once __DIR__ . '/ExperienceService.php';
-require_once __DIR__ . '/FoodService.php';
 require_once __DIR__ . '/GameService.php';
 require_once __DIR__ . '/TickService.php';
+require_once __DIR__ . '/WalletService.php';
 
 
 class SliviService
 {
+    private AffectionService $affectionService;
     private ClothingService $clothingService;
     private ExperienceService $experienceService;
-    private FoodService $foodService;
     private GameService $gameService;
+    private WalletService $walletService;
     private PDO $db;
 
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+        $this->affectionService = new AffectionService($db);
         $this->clothingService = new ClothingService($db);
         $this->experienceService = new ExperienceService($db);
-        $this->foodService = new FoodService($db);
         $this->gameService = new GameService();
+        $this->walletService = new WalletService($db);
     }
 
     /* =========================
@@ -34,6 +37,9 @@ class SliviService
 
     public function getFullState(int $userId): array
     {
+        // Antes de tudo, informa o sistema de login diário para beneficiar o jogador. 
+        $this->affectionService->processDailyLogin($userId);
+
         // Busca estados atuais
         $states = $this->getCharacterStates($userId);
 
@@ -42,6 +48,12 @@ class SliviService
 
         // Busca o XP atual e o nível que o usuario está
         $experienceLevel = $this->experienceService->getXPLevel($userId);
+
+        // Busca o relacionamento com o usuario
+        $relationLevel = $this->affectionService->getRelationship($userId);
+
+        // Busca a carteira
+        $walletData = $this->walletService->getBalance($userId);
 
         // Verifica se está dormindo
         $isSleeping = $this->isSleeping($userId);
@@ -52,6 +64,15 @@ class SliviService
         $tickService = new TickService();
         $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping);
 
+        if (($updatedStates['HUNGER'] ?? 0) === 0 && ($states['HUNGER'] ?? 0) > 0) {
+            $this->affectionService->modifyAffection($userId, -10);
+        }
+
+        $affectionDecay = $tickService->calculateAffectionDecay($lastUpdate, $now);
+
+        if ($affectionDecay < 0) {
+            $this->affectionService->modifyAffection($userId, $affectionDecay);
+        }
 
         // 3️⃣ Salva se mudou
         if ($updatedStates !== $states) {
@@ -79,7 +100,9 @@ class SliviService
             'color'   => $color,
             'image'   => $image,
             'isSleeping' => $isSleeping,
+            'wallet' => $walletData,
             'states'  => $updatedStates,
+            'relationship' => $relationLevel,
             'xpLevel' => $experienceLevel,
             'clothing'   => $equippedClothing,
         ];
@@ -208,35 +231,71 @@ class SliviService
 
 
 
-    private function evaluateEmotion(array $states): array
+    private function evaluateEmotion(array $states, array $recentEvents = []): array
     {
         $energy = $states['ENERGY'] ?? 100;
         $hunger = $states['HUNGER'] ?? 100;
-        $bravo = $states['BRAVO'] ?? 100;
+        $bravo  = $states['BRAVO'] ?? 0; 
 
-        if ($energy < 30) {
-            return ['ASSUSTADO', '#800080', 'body_roxo_assustado.png'];
+        $scores = [
+            'NEUTRO'    => 5,
+            'FELIZ'     => 0,
+            'TRISTE'    => 0,
+            'BRAVO'     => 0,
+            'NERVOSO'   => 0,
+            'ASSUSTADO' => 0,
+            'CANSADO'   => 0
+        ];
+
+
+        if ($hunger < 20) {
+            $scores['BRAVO'] += 15;
+        } elseif ($hunger < 45) {
+            $scores['BRAVO'] += 8;
+        } else {
+            $scores['FELIZ'] += 5;
         }
 
-        if ($hunger < 45) {
-            return ['BRAVO', '#00FF00', 'body_verde_bravo.png'];
+        if ($energy < 20) {
+            $scores['CANSADO'] += 20; 
+        } elseif ($energy < 40) {
+            $scores['TRISTE'] += 10;
+        } elseif ($energy > 80) {
+            $scores['FELIZ'] += 5; 
         }
 
         if ($bravo > 80) {
-            return ['NERVOSO', '#FF0000', 'body_vermelho_nervoso.png'];
+            $scores['NERVOSO'] += 12;
         }
 
-        if ($energy < 40) {
-            return ['TRISTE', '#0000FF', 'body_azul_triste.png'];
+        foreach ($recentEvents as $event => $weight) {
+            if ($event === 'COMIDA_DELICIOSA') {
+                $scores['FELIZ'] += $weight;
+            }
+            if ($event === 'SUSTO') {
+                $scores['ASSUSTADO'] += $weight;
+            }
         }
 
-        if ($energy <= 70) {
-            return ['NEUTRO', '#FFD700', 'body_amarelo_neutro.png'];
-        }
-
-        return ['FELIZ', '#FFA500', 'body_laranja_feliz.png'];
+        arsort($scores);
+        $winningEmotion = array_key_first($scores);
+        return $this->getEmotionData($winningEmotion);
     }
 
+    private function getEmotionData(string $emotion): array
+    {
+        $map = [
+            'FELIZ'     => ['FELIZ', '#FFA500', 'body_laranja_feliz.png'],
+            'NEUTRO'    => ['NEUTRO', '#FFD700', 'body_amarelo_neutro.png'],
+            'TRISTE'    => ['TRISTE', '#0000FF', 'body_azul_triste.png'],
+            'BRAVO'     => ['BRAVO', '#00FF00', 'body_verde_bravo.png'],
+            'NERVOSO'   => ['NERVOSO', '#FF0000', 'body_vermelho_nervoso.png'],
+            'ASSUSTADO' => ['ASSUSTADO', '#800080', 'body_roxo_assustado.png'],
+            'CANSADO'   => ['CANSADO', '#808080', 'body_cinza_cansado.png'] 
+        ];
+
+        return $map[$emotion] ?? $map['NEUTRO'];
+    }
 
 
     /* =========================
@@ -283,6 +342,18 @@ class SliviService
     //ADICIONA O "DORMIR"
     public function startSleep(int $userId): void
     {
+
+        $states = $this->getCharacterStates($userId);
+        $energy = $states['ENERGY'] ?? 0;
+
+        if ($energy > 0 && $energy <= 30) {
+            // Colocou pra dormir antes de zerar (estava cansado, mas não desmaiou)
+            $this->affectionService->modifyAffection($userId, 12);
+        } elseif ($energy === 0) {
+            // Ignorou necessidade crítica (deixou o Slivi desmaiar de sono)
+            $this->affectionService->modifyAffection($userId, -15);
+        }
+
         // Se já existir registro, atualiza
         $stmt = $this->db->prepare("
         INSERT INTO slivi_status (user_id, is_sleeping, started_at)
@@ -298,6 +369,16 @@ class SliviService
     //PARA O "DORMIR"
     public function stopSleep(int $userId): void
     {
+
+        // Pega o estado no momento de acordar
+        $states = $this->getCharacterStates($userId);
+        $energy = $states['ENERGY'] ?? 0;
+
+        // Timing ideal: Acordou o Slivi quando ele já descansou bem (ex: >= 90)
+        if ($energy >= 90) {
+            $this->affectionService->modifyAffection($userId, 8);
+        }
+
         $stmt = $this->db->prepare("
         UPDATE slivi_status
         SET is_sleeping = 0,
@@ -354,6 +435,8 @@ class SliviService
         $this->changeState($userId, 'ENERGY', -15);
         $this->changeState($userId, 'FUN', +25);
 
+        $affectionGained = 10;
+
         // Primeira partida → sem comparação
         if ($previousScore === null) {
             return;
@@ -363,12 +446,16 @@ class SliviService
         if ($score < $previousScore) {
             $this->changeState($userId, 'BRAVO', +10);
             $this->changeState($userId, 'FUN', -10);
+            $affectionGained = 5;
         }
 
         // 📈 Jogou melhor
         if ($score > $previousScore) {
             $this->changeState($userId, 'BRAVO', -10);
             $this->changeState($userId, 'FUN', +10);
+            $affectionGained += 15;
         }
+
+        $this->affectionService->modifyAffection($userId, $affectionGained);
     }
 }

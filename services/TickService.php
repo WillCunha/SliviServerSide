@@ -58,4 +58,26 @@ class TickService
     {
         return max(self::MIN, min(self::MAX, $value));
     }
+
+
+    public function calculateAffectionDecay(DateTime $lastUpdate, DateTime $now): int
+    {
+        $elapsedHours = ($now->getTimestamp() - $lastUpdate->getTimestamp()) / 3600;
+
+        if ($elapsedHours < 6) {
+            return 0;
+        }
+
+        // Calcula blocos de 6 horas
+        $blocksOf6Hours = floor($elapsedHours / 6);
+        $decayAmount = $blocksOf6Hours * 5; 
+
+        // Regra do abandono: Após 24h sem entrar, penalidade extra de -30
+        if ($elapsedHours >= 24) {
+            $decayAmount += 30;
+        }
+
+        // Retorna o valor como negativo para ser subtraído
+        return -(int)$decayAmount; 
+    }
 }
