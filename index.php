@@ -117,6 +117,15 @@ try {
     // --- FIM SISTEMA DE COMIDA / GELADEIRA ---
 
     // INICIO SISTEMA DE ROUPAS
+    if ($path === '/slivi/store/clothes' && $method === 'GET') {
+        (new ClothingController($db))->store();
+        exit;
+    }
+
+    if ($path === '/slivi/store/buy' && $method === 'POST') {
+        (new ClothingController($db))->buy();
+        exit;
+    }
 
     // Rota para buscar roupa específica por ID
     if ($method === 'GET' && preg_match('#^/slivi/wardrobe/cloth/([0-9]+)$#', $path, $matches)) {

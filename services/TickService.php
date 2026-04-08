@@ -26,7 +26,8 @@ class TickService
         array $states,
         DateTime $lastUpdate,
         DateTime $now,
-        bool $isSleeping = false
+        bool $isSleeping = false,
+        float $targetTemperature = 50.0
     ): array {
         $elapsed = $now->getTimestamp() - $lastUpdate->getTimestamp();
 
@@ -51,6 +52,21 @@ class TickService
             $states[$state] = $this->clamp($states[$state]);
         }
 
+        if (array_key_exists('TEMPERATURE', $states)) {
+            $currentTemp = $states['TEMPERATURE'];
+            $diff = $targetTemperature - $currentTemp;
+
+            $step = 0.5 * $minutesPassed;
+
+            if (abs($diff) <= $step) {
+                $states['TEMPERATURE'] = $targetTemperature;
+            } else {
+                $states['TEMPERATURE'] += ($diff > 0) ? $step : -$step;
+            }
+
+            $states['TEMPERATURE'] = $this->clamp($states['TEMPERATURE']);
+        }
+
         return $states;
     }
 
@@ -70,7 +86,7 @@ class TickService
 
         // Calcula blocos de 6 horas
         $blocksOf6Hours = floor($elapsedHours / 6);
-        $decayAmount = $blocksOf6Hours * 5; 
+        $decayAmount = $blocksOf6Hours * 5;
 
         // Regra do abandono: Após 24h sem entrar, penalidade extra de -30
         if ($elapsedHours >= 24) {
@@ -78,6 +94,6 @@ class TickService
         }
 
         // Retorna o valor como negativo para ser subtraído
-        return -(int)$decayAmount; 
+        return -(int)$decayAmount;
     }
 }

@@ -7,6 +7,7 @@ require_once __DIR__ . '/AffectionService.php';
 require_once __DIR__ . '/ClothingService.php';
 require_once __DIR__ . '/ExperienceService.php';
 require_once __DIR__ . '/GameService.php';
+require_once __DIR__ . '/TemperatureService.php';
 require_once __DIR__ . '/TickService.php';
 require_once __DIR__ . '/WalletService.php';
 
@@ -17,6 +18,7 @@ class SliviService
     private ClothingService $clothingService;
     private ExperienceService $experienceService;
     private GameService $gameService;
+    private TemperatureService $temperatureService;
     private WalletService $walletService;
     private PDO $db;
 
@@ -28,6 +30,7 @@ class SliviService
         $this->clothingService = new ClothingService($db);
         $this->experienceService = new ExperienceService($db);
         $this->gameService = new GameService();
+        $this->temperatureService = new TemperatureService($db, $this->clothingService);
         $this->walletService = new WalletService($db);
     }
 
@@ -43,9 +46,6 @@ class SliviService
         // Busca estados atuais
         $states = $this->getCharacterStates($userId);
 
-        // Busca a roupa equipada atualmente
-        $equippedClothing = $this->clothingService->getEquipped($userId);
-
         // Busca o XP atual e o nível que o usuario está
         $experienceLevel = $this->experienceService->getXPLevel($userId);
 
@@ -58,11 +58,17 @@ class SliviService
         // Verifica se está dormindo
         $isSleeping = $this->isSleeping($userId);
 
+        // Verifica a roupa que está sendo utilizada
+        $equippedClothing = $this->clothingService->getEquipped($userId);
+       
+        // Verifica a temperatura do Slivi
+        $targetTemperature = $this->temperatureService->getTargetTemperature($userId);
+
         // Aplica Tick
         $lastUpdate = $this->getLastUpdate($userId);
         $now = new DateTime();
         $tickService = new TickService();
-        $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping);
+        $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping, $targetTemperature);
 
         if (($updatedStates['HUNGER'] ?? 0) === 0 && ($states['HUNGER'] ?? 0) > 0) {
             $this->affectionService->modifyAffection($userId, -10);
@@ -235,7 +241,7 @@ class SliviService
     {
         $energy = $states['ENERGY'] ?? 100;
         $hunger = $states['HUNGER'] ?? 100;
-        $bravo  = $states['BRAVO'] ?? 0; 
+        $bravo  = $states['BRAVO'] ?? 0;
 
         $scores = [
             'NEUTRO'    => 5,
@@ -257,11 +263,11 @@ class SliviService
         }
 
         if ($energy < 20) {
-            $scores['CANSADO'] += 20; 
+            $scores['CANSADO'] += 20;
         } elseif ($energy < 40) {
             $scores['TRISTE'] += 10;
         } elseif ($energy > 80) {
-            $scores['FELIZ'] += 5; 
+            $scores['FELIZ'] += 5;
         }
 
         if ($bravo > 80) {
@@ -291,7 +297,7 @@ class SliviService
             'BRAVO'     => ['BRAVO', '#00FF00', 'body_verde_bravo.png'],
             'NERVOSO'   => ['NERVOSO', '#FF0000', 'body_vermelho_nervoso.png'],
             'ASSUSTADO' => ['ASSUSTADO', '#800080', 'body_roxo_assustado.png'],
-            'CANSADO'   => ['CANSADO', '#808080', 'body_cinza_cansado.png'] 
+            'CANSADO'   => ['CANSADO', '#808080', 'body_cinza_cansado.png']
         ];
 
         return $map[$emotion] ?? $map['NEUTRO'];

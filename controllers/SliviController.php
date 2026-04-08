@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/MealController.php';
+require_once __DIR__ . '/WalletController.php';
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth/AuthService.php';
 require_once __DIR__ . '/../services/SliviService.php';
@@ -102,6 +103,7 @@ class SliviController
         // $gameService = new GameService();
         $objService = new ObjectivesService($this->db);
         $sealService = new SealService($this->db);
+        $walletController = new WalletController($this->db);
 
         try {
             $userId = AuthService::getUserIdFromHeader();
@@ -131,16 +133,15 @@ class SliviController
 
             // $gameService->save($userId, $data['game'], $data['score'], $data['duration']);
 
-            // 2. Processa os objetivos
-            // O array 'stats' deve vir do app com tudo: 'max_score', 'fever_count', etc.
+            $newBalance = $walletController->addMoney($data['stats']['collected_coins']);
             $unlockedClothes = $objService->checkProgress($data['game'], (int)$data['score'], $data['stats']);
-
             $unlockedSeals = $sealService->checkSealsProgress($userId, strtolower($data['game']), $data['stats']);
 
             Response::success([
                 'game_result' => $result,
                 'unlocked_seals' => $unlockedSeals,
-                'unlocked_clothes' => $unlockedClothes // O app pode usar isso para pipocar a conquista na tela!
+                'unlocked_clothes' => $unlockedClothes,
+                'new_balance' => $newBalance
             ]);
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);

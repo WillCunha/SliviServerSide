@@ -24,7 +24,8 @@ class NotificationService
         'ENERGY_LOW'   => 180, // 3 horas
         'BORED'        => 240, // 4 horas
         'BRAVO'        => 240, // 4 horas
-        'COLD'         => 360, // 6 horas
+        'COLD'         => 180, // 6 horas
+        'HOT'         => 180, // 6 horas
         'RAIN'         => 360  // 6 horas
     ];
 
@@ -71,6 +72,20 @@ class NotificationService
             }
         }
 
+        // ❄️ Gatilho de FRIO (Temperatura < 30)
+        if (($stats['TEMPERATURE'] ?? 50) < 30) {
+            if ($this->tryNotify($userId, 'COLD', 'Brrr! Que frio ❄️', 'O Slivi está congelando. Vista algo quente!')) {
+                $sentCount++;
+            }
+        }
+
+        // 🔥 Gatilho de CALOR (Temperatura > 70)
+        if (($stats['TEMPERATURE'] ?? 50) > 70) {
+            if ($this->tryNotify($userId, 'HOT', 'Que calor! 🥵', 'O Slivi está suando. Coloque uma roupa mais fresca!')) {
+                $sentCount++;
+            }
+        }
+
         // 4. Soma as notificações de CLIMA
         $sentCount += $this->checkWeatherConditions($userId);
 
@@ -82,24 +97,23 @@ class NotificationService
      */
     private function checkWeatherConditions(int $userId): int
     {
-        $weatherSent = 0;
-        $stmt = $this->db->prepare("SELECT latitude, longitude FROM user_locations WHERE user_id = ? LIMIT 1");
+        $stmt = $this->db->prepare("SELECT last_temperature, last_condition FROM user_locations WHERE user_id = ?");
         $stmt->execute([$userId]);
         $loc = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$loc) return 0;
 
-        $weather = $this->weatherService->getWeather((float)$loc['latitude'], (float)$loc['longitude']);
+        $weatherSent = 0;
 
-        // Frio
-        if ($weather['temp'] < 15) {
+        // Frio (Usando o dado do banco atualizado pelo CRON)
+        if ($loc['last_temperature'] < 15) {
             if ($this->tryNotify($userId, 'COLD', 'Brrr! Esfriou ❄️', 'Vista o Slivi adequadamente!')) {
                 $weatherSent++;
             }
         }
 
         // Chuva
-        if ($weather['condition'] === 'rain') {
+        if ($loc['last_condition'] === 'rain') {
             if ($this->tryNotify($userId, 'RAIN', 'Está chovendo! ☔', 'Não deixe o Slivi pegar chuva.')) {
                 $weatherSent++;
             }

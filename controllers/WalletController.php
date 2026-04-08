@@ -15,6 +15,18 @@ class WalletController
         $this->walletService = new WalletService($db);
     }
 
+    public function addMoney($amount)
+    {
+        try {
+            $userId = AuthService::getUserIdFromHeader();
+            $addMoney = $this->walletService->addCoins($userId, $amount);
+
+            Response::success(['s_coins' => $addMoney]);
+        } catch (Exception $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
     /**
      * GET /slivi/wallet/balance
      */

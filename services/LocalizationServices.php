@@ -16,11 +16,8 @@ class LocalizationServices
 
     public function processLocation(int $userId, float $lat, float $lon): array
     {
-        // 1. Salvar no histórico (para inteligência futura de "Casa")
-        $this->saveUserLocation($userId, $lat, $lon);
-
-        // 2. Buscar dados do tempo
         $weatherData = $this->weatherService->getWeather($lat, $lon);
+        $this->saveUserLocation($userId, $lat, $lon, $weatherData['temp'], $weatherData['condition']);
 
         // 3. (Futuro) Verificar se é a "Casa" do usuário
         // $isHome = $this->checkIfHome($userId, $lat, $lon);
@@ -32,17 +29,19 @@ class LocalizationServices
         ];
     }
 
-    private function saveUserLocation(int $userId, float $lat, float $lon): void
+    private function saveUserLocation(int $userId, float $lat, float $lon, int $temp, string $condition): void
     {
         $stmt = $this->db->prepare("
-            INSERT INTO user_locations (user_id, latitude, longitude) 
-            VALUES (:uid, :lat, :lon)
+            INSERT INTO user_locations (user_id, latitude, longitude, last_temperature, last_condition) 
+            VALUES (:uid, :lat, :lon, :temp, :condition)
         ");
         
         $stmt->execute([
             ':uid' => $userId,
             ':lat' => $lat,
-            ':lon' => $lon
+            ':lon' => $lon,
+            ':temp' => $temp,
+            ':condition' => $condition,
         ]);
     }
 }

@@ -24,7 +24,8 @@ class FoodService
             ORDER BY name
         ");
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $foods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->groupByType($foods);
     }
 
     public function getById(int $foodId): array
@@ -51,7 +52,9 @@ class FoodService
             ORDER BY f.name
         ");
         $stmt->execute([$userId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $foods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->groupByType($foods);
     }
 
     // Compra: Adiciona na geladeira ou incrementa a quantidade se já existir
@@ -69,12 +72,12 @@ class FoodService
             $quantity = (int) ($item['quantity'] ?? 0);
 
             if ($foodId <= 0 || $quantity <= 0) {
-                continue; 
+                continue;
             }
 
-            $food = $this->getById($foodId); 
+            $food = $this->getById($foodId);
             $totalPrice += (int)$food['price'] * $quantity;
-            
+
             $validItems[] = [
                 'food_id' => $foodId,
                 'quantity' => $quantity
@@ -100,15 +103,14 @@ class FoodService
 
             foreach ($validItems as $item) {
                 $stmt->execute([
-                    $userId, 
-                    $item['food_id'], 
-                    $item['quantity'], 
-                    $item['quantity'] 
+                    $userId,
+                    $item['food_id'],
+                    $item['quantity'],
+                    $item['quantity']
                 ]);
             }
 
             $this->db->commit();
-
         } catch (Exception $e) {
             $this->db->rollBack();
             throw $e;
@@ -140,5 +142,26 @@ class FoodService
 
         // Retorna os dados da comida para o Controller aplicar os status (fome, energia) no Slivi
         return $this->getById($foodId);
+    }
+
+    /**
+     * Agrupa um array de comidas pelo tipo (type).
+     */
+    private function groupByType(array $foods): array
+    {
+        $grouped = [];
+        foreach ($foods as $food) {
+            $type = $food['type'];
+
+            // Se o tipo ainda não existe no array agrupado, inicializa como array vazio
+            if (!isset($grouped[$type])) {
+                $grouped[$type] = [];
+            }
+
+            // Adiciona a comida dentro do seu respectivo tipo
+            $grouped[$type][] = $food;
+        }
+
+        return $grouped;
     }
 }

@@ -32,6 +32,51 @@ class ClothingController
     }
 
     /**
+     * GET /slivi/store/clothes
+     * Retorna todas as roupas disponíveis na loja, separadas por categoria
+     */
+    public function store(): void
+    {
+        try {
+            $userId = AuthService::getUserIdFromHeader();
+            $storeItems = $this->clothingService->getStore($userId);
+
+            Response::success($storeItems);
+        } catch (Exception $e) {
+            Response::error($e->getMessage(), 401);
+        }
+    }
+
+    /**
+     * POST /slivi/store/buy
+     * Corpo esperado: { "cloth_id": 4 }
+     */
+    public function buy(): void
+    {
+        try {
+            $userId = AuthService::getUserIdFromHeader();
+            $body = json_decode(file_get_contents('php://input'), true);
+
+            // Verifica se mandou o ID corretamente
+            if (!isset($body['cloth_id'])) {
+                throw new Exception("ID da roupa não informado.");
+            }
+
+            $clothId = (int) $body['cloth_id'];
+
+            // Chama o service simplificado
+            $this->clothingService->buyCloth($userId, $clothId);
+
+            Response::success([
+                'message' => 'Roupa comprada com sucesso!',
+                'cloth_id' => $clothId
+            ]);
+        } catch (Exception $e) {
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /**
      * GET /slivi/wardrobe/cloth/{id}
      * Retorna os detalhes de uma roupa específica
      */

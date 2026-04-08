@@ -20,12 +20,16 @@ class WalletService
         return $result ? (int) $result['s_coins'] : 0;
     }
 
-    public function addCoins(int $userId, int $amount): void
+    public function addCoins(int $userId, int $amount): int
     {
-        if ($amount <= 0) return;
+        if ($amount <= 0) return 0;
 
         $stmt = $this->db->prepare("UPDATE users SET s_coins = s_coins + ? WHERE id = ?");
         $stmt->execute([$amount, $userId]);
+
+        $balance = $this->getBalance($userId);
+
+        return $balance;
     }
 
     public function spendCoins(int $userId, int $amount): bool
