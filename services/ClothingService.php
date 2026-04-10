@@ -15,7 +15,7 @@ class ClothingService
     public function getClothById(int $clothId): ?array
     {
         $stmt = $this->db->prepare("
-            SELECT id, name, slug, temperature, category 
+            SELECT id, name, slug, temperature, category
             FROM slivi_clothes 
             WHERE id = ? 
             LIMIT 1
@@ -179,6 +179,20 @@ class ClothingService
         }
 
         return $equipped; // Retorna array vazio [] se estiver totalmente sem roupa
+    }
+
+    // Adicione no final do ClothingService.php
+    public function getEquippedTemperatures(int $userId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT temperature 
+            FROM slivi_user_equipped_clothes 
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$userId]);
+
+        // Retorna um array simples só com os números: [75, 75]
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     // Salva a nova roupa equipada no banco

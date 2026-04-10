@@ -60,7 +60,7 @@ class SliviService
 
         // Verifica a roupa que está sendo utilizada
         $equippedClothing = $this->clothingService->getEquipped($userId);
-       
+
         // Verifica a temperatura do Slivi
         $targetTemperature = $this->temperatureService->getTargetTemperature($userId);
 
@@ -68,7 +68,16 @@ class SliviService
         $lastUpdate = $this->getLastUpdate($userId);
         $now = new DateTime();
         $tickService = new TickService();
+
+        $this->logDebug("USER_ID: $userId");
+        $this->logDebug("TARGET_CALCULADO: $targetTemperature");
+        $this->logDebug("TEMP_ATUAL_ANTES: " . $states['TEMPERATURE']);
+        $this->logDebug("ULTIMA_ATUALIZACAO: " . $lastUpdate->format('Y-m-d H:i:s'));
+
         $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping, $targetTemperature);
+
+        $this->logDebug("TEMP_FINAL_DEPOIS: " . $updatedStates['TEMPERATURE']);
+        $this->logDebug("--------------------------------------------------");
 
         if (($updatedStates['HUNGER'] ?? 0) === 0 && ($states['HUNGER'] ?? 0) > 0) {
             $this->affectionService->modifyAffection($userId, -10);
@@ -100,6 +109,8 @@ class SliviService
             $this->addEmotion($userId, $emotionName, $color, $image);
         }
 
+        $hoursAway = $this->calculateAndUpdateLastActivity($userId);
+
         // 5️⃣ Retorno IGUAL ao atual
         return [
             'emotion' => $emotionName,
@@ -111,9 +122,47 @@ class SliviService
             'relationship' => $relationLevel,
             'xpLevel' => $experienceLevel,
             'clothing'   => $equippedClothing,
+            'hoursAway' => $hoursAway // Passa pro Front-end!
+        ];
+
+        // 5️⃣ Retorno IGUAL ao atual
+        return [
+            'emotion' => $emotionName,
+            'color'   => $color,
+            'image'   => $image,
+            'isSleeping' => $isSleeping,
+            'wallet' => $walletData,
+            'states'  => $updatedStates,
+            'relationship' => $relationLevel,
+            'xpLevel' => $experienceLevel,
+            'clothing'   => $equippedClothing,
+            'lastActive' => $lastUpdate->format('Y-m-d H:i:s'),
+            'hoursAway'  => round($hoursAway, 2),
         ];
     }
 
+    private function calculateAndUpdateLastActivity(int $userId): float
+    {
+        // 1. Busca quando foi a última vez que o usuário interagiu de verdade
+        $stmt = $this->db->prepare("SELECT last_active_at FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $lastActive = $stmt->fetchColumn();
+
+        $now = new DateTime();
+
+        // Se for a primeira vez do usuário, assumimos o momento atual
+        $lastActiveDate = $lastActive ? new DateTime($lastActive) : clone $now;
+
+        // 2. Calcula a diferença em horas
+        $interval = $lastActiveDate->diff($now);
+        $hoursAway = ($interval->days * 24) + $interval->h + ($interval->i / 60);
+
+        // 3. Atualiza o banco para o AGORA (já que ele acabou de abrir o app)
+        $update = $this->db->prepare("UPDATE users SET last_active_at = :now WHERE id = :id");
+        $update->execute(['now' => $now->format('Y-m-d H:i:s'), 'id' => $userId]);
+
+        return round($hoursAway, 2);
+    }
 
     private function getCurrentEmotion(int $userId): ?array
     {
@@ -463,5 +512,12 @@ class SliviService
         }
 
         $this->affectionService->modifyAffection($userId, $affectionGained);
+    }
+
+    private function logDebug($message): void
+    {
+        $logFile = __DIR__ . '/debug_log.txt';
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($logFile, "[$timestamp] $message" . PHP_EOL, FILE_APPEND);
     }
 }
