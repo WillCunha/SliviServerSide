@@ -120,7 +120,7 @@ class ObjectivesService
 
                 // 1. Dar as moedas (você precisará ter o campo 'coins' na tabela 'users')
                 if (isset($obj['reward_coins']) && $obj['reward_coins'] > 0) {
-                    $this->db->prepare("UPDATE users SET coins = coins + :coins WHERE id = :user_id")
+                    $this->db->prepare("UPDATE users SET s_coins = s_coins + :coins WHERE id = :user_id")
                         ->execute(['coins' => $obj['reward_coins'], 'user_id' => $obj['user_id']]);
                 }
 

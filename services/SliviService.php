@@ -61,6 +61,9 @@ class SliviService
         // Verifica a roupa que está sendo utilizada
         $equippedClothing = $this->clothingService->getEquipped($userId);
 
+        // Busca se há roupas que o Slivi está enjoado de usar
+        $tiredClothes = $this->clothingService->getTiredClothes($userId);
+
         // Verifica a temperatura do Slivi
         $targetTemperature = $this->temperatureService->getTargetTemperature($userId);
 
@@ -69,15 +72,7 @@ class SliviService
         $now = new DateTime();
         $tickService = new TickService();
 
-        $this->logDebug("USER_ID: $userId");
-        $this->logDebug("TARGET_CALCULADO: $targetTemperature");
-        $this->logDebug("TEMP_ATUAL_ANTES: " . $states['TEMPERATURE']);
-        $this->logDebug("ULTIMA_ATUALIZACAO: " . $lastUpdate->format('Y-m-d H:i:s'));
-
         $updatedStates = $tickService->apply($states, $lastUpdate, $now, $isSleeping, $targetTemperature);
-
-        $this->logDebug("TEMP_FINAL_DEPOIS: " . $updatedStates['TEMPERATURE']);
-        $this->logDebug("--------------------------------------------------");
 
         if (($updatedStates['HUNGER'] ?? 0) === 0 && ($states['HUNGER'] ?? 0) > 0) {
             $this->affectionService->modifyAffection($userId, -10);
@@ -109,6 +104,10 @@ class SliviService
             $this->addEmotion($userId, $emotionName, $color, $image);
         }
 
+        if (!empty($tiredClothes)) {
+            $equippedClothing['tired'] = $tiredClothes;
+        }
+
         $hoursAway = $this->calculateAndUpdateLastActivity($userId);
 
         // 5️⃣ Retorno IGUAL ao atual
@@ -122,22 +121,7 @@ class SliviService
             'relationship' => $relationLevel,
             'xpLevel' => $experienceLevel,
             'clothing'   => $equippedClothing,
-            'hoursAway' => $hoursAway // Passa pro Front-end!
-        ];
-
-        // 5️⃣ Retorno IGUAL ao atual
-        return [
-            'emotion' => $emotionName,
-            'color'   => $color,
-            'image'   => $image,
-            'isSleeping' => $isSleeping,
-            'wallet' => $walletData,
-            'states'  => $updatedStates,
-            'relationship' => $relationLevel,
-            'xpLevel' => $experienceLevel,
-            'clothing'   => $equippedClothing,
-            'lastActive' => $lastUpdate->format('Y-m-d H:i:s'),
-            'hoursAway'  => round($hoursAway, 2),
+            'hoursAway' => $hoursAway 
         ];
     }
 
@@ -157,9 +141,6 @@ class SliviService
         $interval = $lastActiveDate->diff($now);
         $hoursAway = ($interval->days * 24) + $interval->h + ($interval->i / 60);
 
-        // 3. Atualiza o banco para o AGORA (já que ele acabou de abrir o app)
-        $update = $this->db->prepare("UPDATE users SET last_active_at = :now WHERE id = :id");
-        $update->execute(['now' => $now->format('Y-m-d H:i:s'), 'id' => $userId]);
 
         return round($hoursAway, 2);
     }
@@ -359,6 +340,11 @@ class SliviService
 
     public function changeState(int $userId, string $state, int $delta): void
     {
+
+        $now = new DateTime();
+        $update = $this->db->prepare("UPDATE users SET last_active_at = :now WHERE id = :id");
+        $update->execute(['now' => $now->format('Y-m-d H:i:s'), 'id' => $userId]);
+
         $stmt = $this->db->prepare("
             UPDATE character_states
             SET value = LEAST(100, GREATEST(0, value + ?))

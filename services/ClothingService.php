@@ -195,6 +195,38 @@ class ClothingService
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
+    public function getTiredClothes(int $userId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT category, updated_at 
+            FROM slivi_user_equipped_clothes 
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$userId]);
+        $clothes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $tired = [];
+        $now = new DateTime();
+        $counter = 1;
+
+        foreach ($clothes as $cloth) {
+            if (empty($cloth['updated_at'])) {
+                continue;
+            }
+
+            $equippedAt = new DateTime($cloth['updated_at']);
+            $daysWorn = $now->diff($equippedAt)->days;
+
+            // Define o tempo mínimo para a roupa ser considerada "velha" (ex: 4 dias)
+            if ($daysWorn >= 2) {
+                $tired["item-" . $counter] = $cloth['category'];
+                $counter++;
+            }
+        }
+
+        return $tired;
+    }
+
     // Salva a nova roupa equipada no banco
     public function equipClothing(int $userId, string $slug): void
     {

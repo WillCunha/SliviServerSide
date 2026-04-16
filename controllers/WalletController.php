@@ -21,7 +21,7 @@ class WalletController
             $userId = AuthService::getUserIdFromHeader();
             $addMoney = $this->walletService->addCoins($userId, $amount);
 
-            Response::success(['s_coins' => $addMoney]);
+            return $addMoney;
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);
         }
